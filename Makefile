@@ -7,4 +7,4 @@ build:
 clean:
 	docker image prune
 sql:
-	cd database && sh concat.sh && cd ..
+	cd database && cat users.sql shop.sql > init.sql && cd ..
