@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS orders(
 );
 CREATE INDEX orders_user_id ON orders (user_id);
 
+
 INSERT INTO address (user_id, address_1, address_2, postcode, city) VALUES 
 (1, '1 bob st', '', 'm1abc', 'manchester');
 
