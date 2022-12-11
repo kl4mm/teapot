@@ -22,7 +22,7 @@ impl User {
         first_name: String,
         last_name: String,
         email: String,
-        password: String,
+        password: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -74,9 +74,10 @@ impl User {
     }
 }
 
-struct Password;
+pub struct Password;
+
 impl Password {
-    fn hash(password: &str) -> Result<String, argon2::password_hash::Error> {
+    pub fn hash(password: &str) -> Result<String, argon2::password_hash::Error> {
         let salt = SaltString::new(SALT)?;
         let argon2 = Argon2::default();
         let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap();
@@ -84,7 +85,7 @@ impl Password {
         Ok(hash.hash.unwrap().to_string())
     }
 
-    fn verify(password: &str) -> Result<(), argon2::password_hash::Error> {
+    pub fn verify(password: &str) -> Result<(), argon2::password_hash::Error> {
         let argon2 = Argon2::default();
         let hashed = Self::hash(password)?;
         let hashed = PasswordHash::new(&hashed)?;
