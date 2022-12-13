@@ -3,15 +3,16 @@ use argon2::{
     Argon2,
 };
 use serde::Serialize;
-use sqlx::{FromRow, PgPool};
-use uuid::Uuid;
+use sqlx::{FromRow, PgPool, Row};
 
-const SALT: &str = "salt";
+const SALT: &str = "c3VwZXJzZWNyZXRzYWx0";
 
 #[derive(Serialize, FromRow)]
-struct User {
+pub struct User {
     id: i64,
+    #[serde(rename(serialize = "firstName"))]
     first_name: String,
+    #[serde(rename(serialize = "lastName"))]
     last_name: String,
     email: String,
 }
@@ -22,27 +23,53 @@ impl User {
         first_name: String,
         last_name: String,
         email: String,
-        password: &[u8],
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
+        password: String,
+    ) -> Result<Self, sqlx::Error> {
+        let row = sqlx::query(
             r#"
             INSERT INTO users (
-                id,
                 first_name,
                 last_name,
                 email,
                 password
-            ) VALUES ($1, $2, $3, $4, $5)
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING id 
             "#,
         )
-        .bind(Uuid::new_v4())
-        .bind(first_name)
-        .bind(last_name)
-        .bind(email)
-        .bind(password)
-        .execute(&*pool)
+        .bind(&first_name)
+        .bind(&last_name)
+        .bind(&email)
+        .bind(password.into_bytes())
+        .fetch_one(&*pool)
         .await?;
-        Ok(())
+
+        let id = row.try_get("id")?;
+
+        Ok(User {
+            id,
+            first_name,
+            last_name,
+            email,
+        })
+    }
+
+    pub async fn from_email_and_password(
+        pool: &PgPool,
+        email: &str,
+        password: String,
+    ) -> Result<User, sqlx::Error> {
+        let row = sqlx::query_as(
+            r#"
+            SELECT id, first_name, last_name, email FROM accounts
+            WHERE email = $1 AND password = $2
+            "#,
+        )
+        .bind(email)
+        .bind(password.into_bytes())
+        .fetch_one(pool)
+        .await?;
+
+        Ok(row)
     }
 
     pub async fn from_id(pool: &PgPool, id: uuid::Uuid) -> Result<User, sqlx::Error> {
@@ -59,7 +86,7 @@ impl User {
         Ok(row)
     }
 
-    pub async fn from_email(pool: &PgPool, email: String) -> Result<User, sqlx::Error> {
+    pub async fn from_email(pool: &PgPool, email: &str) -> Result<User, sqlx::Error> {
         let row = sqlx::query_as(
             r#"
             SELECT id, first_name, last_name, email FROM accounts

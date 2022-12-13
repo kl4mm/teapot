@@ -1195,7 +1195,10 @@ dependencies = [
 name = "users"
 version = "0.1.0"
 dependencies = [
+ "dblib",
  "hyper",
+ "serde",
+ "serde_json",
  "sqlx",
  "tokio",
 ]
