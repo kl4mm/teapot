@@ -55,17 +55,17 @@ impl User {
 
     pub async fn from_email_and_password(
         pool: &PgPool,
-        email: &str,
-        password: String,
+        email: String,
+        password: &[u8],
     ) -> Result<User, sqlx::Error> {
         let row = sqlx::query_as(
             r#"
-            SELECT id, first_name, last_name, email FROM accounts
+            SELECT id, first_name, last_name, email FROM users
             WHERE email = $1 AND password = $2
             "#,
         )
         .bind(email)
-        .bind(password.into_bytes())
+        .bind(password)
         .fetch_one(pool)
         .await?;
 
@@ -75,7 +75,7 @@ impl User {
     pub async fn from_id(pool: &PgPool, id: uuid::Uuid) -> Result<User, sqlx::Error> {
         let row = sqlx::query_as(
             r#"
-            SELECT id, first_name, last_name, email FROM accounts
+            SELECT id, first_name, last_name, email FROM users
             WHERE id = $1
             "#,
         )
@@ -89,7 +89,7 @@ impl User {
     pub async fn from_email(pool: &PgPool, email: &str) -> Result<User, sqlx::Error> {
         let row = sqlx::query_as(
             r#"
-            SELECT id, first_name, last_name, email FROM accounts
+            SELECT id, first_name, last_name, email FROM users
             WHERE email = $1
             "#,
         )
@@ -112,10 +112,7 @@ impl Password {
         Ok(hash.hash.unwrap().to_string())
     }
 
-    pub fn verify(password: &str) -> Result<(), argon2::password_hash::Error> {
-        let argon2 = Argon2::default();
-        let hashed = Self::hash(password)?;
-        let hashed = PasswordHash::new(&hashed)?;
-        argon2.verify_password(password.as_bytes(), &hashed)
-    }
+    // pub fn verify(password: &[u8], stored: &[u8]) -> Result<(), argon2::password_hash::Error> {
+    //     argon2.verify_password(password, &stored)
+    // }
 }
