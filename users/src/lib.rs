@@ -79,6 +79,7 @@ async fn sign_up(
     };
 
     let res = serde_json::to_string(&user).unwrap();
+    *response.status_mut() = StatusCode::CREATED;
     *response.body_mut() = Body::from(res);
 
     Ok(response)
