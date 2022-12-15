@@ -57,22 +57,22 @@ async fn sign_up(
             sqlx::Error::Database(err) => {
                 if err.code().is_some() && err.code().unwrap().contains("23505") {
                     // Unique violation:
-                    *response.status_mut() = StatusCode::BAD_REQUEST;
-                    *response.body_mut() =
-                        Body::from(r#"{"message": "Email has already signed up. Please log in."}"#);
+                    response = set_response(
+                        response,
+                        StatusCode::BAD_REQUEST,
+                        Some(r#"{"message": "Email has already signed up. Please log in."}"#),
+                    );
                     return Ok(response);
                 } else {
                     // Other db error
                     dbg!(err);
-                    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                    *response.body_mut() = Body::from(r#"{{"message": "Internal Server Error"}}"#);
+                    response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                     return Ok(response);
                 };
             }
             e => {
                 dbg!(e);
-                *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                *response.body_mut() = Body::from(r#"{{"message": "Internal Server Error"}}"#);
+                response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                 return Ok(response);
             }
         },
@@ -104,16 +104,17 @@ async fn token(
         Ok(u) => u,
         Err(e) => match e {
             sqlx::Error::RowNotFound => {
-                *response.status_mut() = StatusCode::BAD_REQUEST;
-                *response.body_mut() =
-                    Body::from(r#"{{"message": "Email or password incorrect"}}"#);
+                response = set_response(
+                    response,
+                    StatusCode::BAD_REQUEST,
+                    Some(r#"{{"message": "Email or password incorrect"}}"#),
+                );
                 return Ok(response);
             }
             _ => {
                 // Other db error
                 dbg!(e);
-                *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                *response.body_mut() = Body::from(r#"{{"message": "Internal Server Error"}}"#);
+                response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                 return Ok(response);
             }
         },
@@ -123,4 +124,27 @@ async fn token(
     *response.body_mut() = Body::from(res);
 
     Ok(response)
+}
+
+const INTERNAL_SERVER_ERROR: &str = r#"{{"message": "Internal Server Error"}}"#;
+
+fn set_response<'a>(
+    mut response: Response<Body>,
+    code: StatusCode,
+    message: Option<&str>,
+) -> Response<Body> {
+    *response.status_mut() = code;
+
+    let body = match message {
+        None => match code {
+            // Messages for each code:
+            StatusCode::INTERNAL_SERVER_ERROR => Body::from(INTERNAL_SERVER_ERROR),
+            _ => Body::empty(),
+        },
+        Some(m) => Body::from(m.to_owned()),
+    };
+
+    *response.body_mut() = body;
+
+    response
 }
