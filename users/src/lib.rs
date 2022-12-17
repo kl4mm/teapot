@@ -46,11 +46,34 @@ async fn sign_up(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, Infallible> {
-    let bytes = hyper::body::to_bytes(body).await.unwrap();
-    let r: SignupRequest = serde_json::from_slice(&bytes).unwrap();
+    let bytes = match hyper::body::to_bytes(body).await {
+        Ok(b) => b,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
+            return Ok(response);
+        }
+    };
 
-    let password = Password::hash(&r.password).unwrap();
-    let user = match User::new(pool, r.first_name, r.last_name, r.email, password).await {
+    let r: SignupRequest = match serde_json::from_slice(&bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
+            return Ok(response);
+        }
+    };
+
+    let hash = match Password::hash(&r.password) {
+        Ok(p) => p,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
+            return Ok(response);
+        }
+    };
+
+    let user = match User::new(pool, r.first_name, r.last_name, r.email, hash).await {
         Ok(u) => u,
         Err(e) => match e {
             sqlx::Error::Database(err) => {
@@ -77,7 +100,15 @@ async fn sign_up(
         },
     };
 
-    let res = serde_json::to_string(&user).unwrap();
+    let res = match serde_json::to_string(&user) {
+        Ok(r) => r,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
+            return Ok(response);
+        }
+    };
+
     *response.status_mut() = StatusCode::CREATED;
     *response.body_mut() = Body::from(res);
 
@@ -95,10 +126,33 @@ async fn token(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, Infallible> {
-    let bytes = hyper::body::to_bytes(body).await.unwrap();
-    let r: TokenRequest = serde_json::from_slice(&bytes).unwrap();
+    let bytes = match hyper::body::to_bytes(body).await {
+        Ok(b) => b,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
+            return Ok(response);
+        }
+    };
 
-    let hash = Password::hash(&r.password).unwrap();
+    let r: TokenRequest = match serde_json::from_slice(&bytes) {
+        Ok(r) => r,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
+            return Ok(response);
+        }
+    };
+
+    let hash = match Password::hash(&r.password) {
+        Ok(p) => p,
+        Err(e) => {
+            dbg!(e);
+            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
+            return Ok(response);
+        }
+    };
+
     let hash_bytes = hash.into_bytes();
     let user = match User::from_email_and_password(pool, r.email, &hash_bytes).await {
         Ok(u) => u,
@@ -107,7 +161,7 @@ async fn token(
                 response = set_response(
                     response,
                     StatusCode::BAD_REQUEST,
-                    Some(r#"{{"message": "Email or password incorrect"}}"#),
+                    Some(r#"{"message": "Email or password incorrect"}"#),
                 );
                 return Ok(response);
             }
@@ -126,7 +180,8 @@ async fn token(
     Ok(response)
 }
 
-const INTERNAL_SERVER_ERROR: &str = r#"{{"message": "Internal Server Error"}}"#;
+const INTERNAL_SERVER_ERROR: &str = r#"{"message": "Internal Server Error"}"#;
+const UNPROCESSABLE_ENTITY: &str = r#"{"message": "Unprocessable Entity"}"#;
 
 fn set_response<'a>(
     mut response: Response<Body>,
@@ -136,12 +191,13 @@ fn set_response<'a>(
     *response.status_mut() = code;
 
     let body = match message {
+        Some(m) => Body::from(m.to_owned()),
         None => match code {
             // Messages for each code:
             StatusCode::INTERNAL_SERVER_ERROR => Body::from(INTERNAL_SERVER_ERROR),
+            StatusCode::UNPROCESSABLE_ENTITY => Body::from(UNPROCESSABLE_ENTITY),
             _ => Body::empty(),
         },
-        Some(m) => Body::from(m.to_owned()),
     };
 
     *response.body_mut() = body;
