@@ -1,9 +1,8 @@
-use std::{convert::Infallible, sync::Arc};
-
 use dblib::users::users::{Password, User};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use serde::Deserialize;
 use sqlx::{PgPool, Pool, Postgres};
+use std::{convert::Infallible, sync::Arc};
 
 pub struct App {
     pool: Pool<Postgres>,

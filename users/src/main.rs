@@ -6,10 +6,13 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Server,
 };
+use towerlib::logging::Logging;
 use users::App;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let pool = connect("users").await.unwrap();
 
     let app = App::new(pool);
@@ -18,9 +21,10 @@ async fn main() {
         // Clone for each invocation of make_service
         let app = app.clone();
 
-        let service = service_fn(move |req| users::handle(app.clone(), req));
+        let svc = service_fn(move |req| users::handle(app.clone(), req));
+        let svc = Logging::new(svc);
 
-        async move { Ok::<_, Infallible>(service) }
+        async move { Ok::<_, Infallible>(svc) }
     });
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
