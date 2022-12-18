@@ -183,7 +183,7 @@ async fn token(
 const INTERNAL_SERVER_ERROR: &str = r#"{"message": "Internal Server Error"}"#;
 const UNPROCESSABLE_ENTITY: &str = r#"{"message": "Unprocessable Entity"}"#;
 
-fn set_response<'a>(
+fn set_response(
     mut response: Response<Body>,
     code: StatusCode,
     message: Option<&str>,
