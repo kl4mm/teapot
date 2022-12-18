@@ -160,7 +160,7 @@ async fn token(
             sqlx::Error::RowNotFound => {
                 response = set_response(
                     response,
-                    StatusCode::BAD_REQUEST,
+                    StatusCode::UNAUTHORIZED,
                     Some(r#"{"message": "Email or password incorrect"}"#),
                 );
                 return Ok(response);
