@@ -5,7 +5,7 @@ pub mod shop;
 pub mod users;
 
 pub async fn connect(database: &str) -> Result<PgPool, sqlx::Error> {
-    let mut uri = env::var("DATABASE_URI").expect("DATABASE_URI not present");
+    let mut uri = env::var("DATABASE_URL").expect("DATABASE_URI not present");
     uri.push_str("/");
     uri.push_str(database);
 

@@ -23,8 +23,8 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
     let (parts, mut body) = req.into_parts();
 
     match (parts.method, parts.uri.path()) {
-        (Method::POST, "/") => response = sign_up(&app.pool, &mut body, response).await.unwrap(),
-        (Method::POST, "/token") => response = token(&app.pool, &mut body, response).await.unwrap(),
+        (Method::POST, "/") => response = sign_up(&app.pool, &mut body, response).await?,
+        (Method::POST, "/token") => response = token(&app.pool, &mut body, response).await?,
         _ => *response.status_mut() = StatusCode::NOT_FOUND,
     }
 
@@ -81,7 +81,7 @@ async fn sign_up(
                     // Unique violation:
                     response = set_response(
                         response,
-                        StatusCode::BAD_REQUEST,
+                        StatusCode::CONFLICT,
                         Some(r#"{"message": "Email has already signed up. Please log in."}"#),
                     );
                     return Ok(response);
@@ -203,4 +203,55 @@ fn set_response(
     *response.body_mut() = body;
 
     response
+}
+
+#[cfg(test)]
+mod test {
+    use hyper::{Body, Response, StatusCode};
+
+    use super::{sign_up, token, App};
+
+    #[sqlx::test(fixtures("users"))]
+    async fn test_sign_up(pool: sqlx::PgPool) -> sqlx::Result<()> {
+        let app = App::new(pool);
+
+        let mut body = Body::from(
+            "\
+{
+    \"firstName\": \"bob\",
+    \"lastName\": \"smith\",
+    \"email\": \"bob@mail.com\",
+    \"password\": \"password123\"
+}",
+        );
+
+        let response = Response::new(Body::empty());
+
+        let res = sign_up(&app.pool, &mut body, response).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::CREATED);
+
+        Ok(())
+    }
+
+    #[sqlx::test(fixtures("users"))]
+    async fn test_token(pool: sqlx::PgPool) -> sqlx::Result<()> {
+        let app = App::new(pool);
+
+        let mut body = Body::from(
+            "\
+{
+    \"email\": \"bob@smith.com\",
+    \"password\": \"password\"
+}",
+        );
+
+        let response = Response::new(Body::empty());
+
+        let res = token(&app.pool, &mut body, response).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        Ok(())
+    }
 }
