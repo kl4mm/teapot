@@ -9,12 +9,12 @@ const SALT: &str = "c3VwZXJzZWNyZXRzYWx0";
 
 #[derive(Serialize, FromRow)]
 pub struct User {
-    id: i64,
+    pub id: i64,
     #[serde(rename(serialize = "firstName"))]
     first_name: String,
     #[serde(rename(serialize = "lastName"))]
     last_name: String,
-    email: String,
+    pub email: String,
 }
 
 impl User {

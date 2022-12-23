@@ -1,8 +1,11 @@
+pub mod token;
+
 use dblib::users::users::{Password, User};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use serde::Deserialize;
 use sqlx::{PgPool, Pool, Postgres};
 use std::{convert::Infallible, sync::Arc};
+use token::gen_token;
 
 pub struct App {
     pool: Pool<Postgres>,
@@ -22,11 +25,19 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
 
     let (parts, mut body) = req.into_parts();
 
-    match (parts.method, parts.uri.path()) {
-        (Method::POST, "/") => response = sign_up(&app.pool, &mut body, response).await?,
-        (Method::POST, "/token") => response = token(&app.pool, &mut body, response).await?,
-        _ => *response.status_mut() = StatusCode::NOT_FOUND,
-    }
+    let response = match (parts.method, parts.uri.path()) {
+        (Method::POST, "/") => sign_up(&app.pool, &mut body, response).await,
+        (Method::POST, "/token") => token(&app.pool, &mut body, response).await,
+        _ => {
+            *response.status_mut() = StatusCode::NOT_FOUND;
+            Ok(response)
+        }
+    };
+
+    let response = match response {
+        Ok(r) => r,
+        Err(code) => set_response(Response::new(Body::empty()), code, None),
+    };
 
     Ok(response)
 }
@@ -45,33 +56,21 @@ async fn sign_up(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,
-) -> Result<Response<Body>, Infallible> {
-    let bytes = match hyper::body::to_bytes(body).await {
-        Ok(b) => b,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-            return Ok(response);
-        }
-    };
+) -> Result<Response<Body>, StatusCode> {
+    let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let r: SignupRequest = match serde_json::from_slice(&bytes) {
-        Ok(r) => r,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
-            return Ok(response);
-        }
-    };
+    let r: SignupRequest = serde_json::from_slice(&bytes).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
 
-    let hash = match Password::hash(&r.password) {
-        Ok(p) => p,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-            return Ok(response);
-        }
-    };
+    let hash = Password::hash(&r.password).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let user = match User::new(pool, r.first_name, r.last_name, r.email, hash).await {
         Ok(u) => u,
@@ -85,29 +84,22 @@ async fn sign_up(
                         Some(r#"{"message": "Email has already signed up. Please log in."}"#),
                     );
                     return Ok(response);
-                } else {
-                    // Other db error
-                    log::debug!("{}", e);
-                    response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-                    return Ok(response);
                 };
+                // Other db error
+                log::debug!("{}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
             e => {
                 log::debug!("{}", e);
-                response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-                return Ok(response);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         },
     };
 
-    let res = match serde_json::to_string(&user) {
-        Ok(r) => r,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-            return Ok(response);
-        }
-    };
+    let res = serde_json::to_string(&user).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     *response.status_mut() = StatusCode::CREATED;
     *response.body_mut() = Body::from(res);
@@ -125,33 +117,21 @@ async fn token(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,
-) -> Result<Response<Body>, Infallible> {
-    let bytes = match hyper::body::to_bytes(body).await {
-        Ok(b) => b,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-            return Ok(response);
-        }
-    };
+) -> Result<Response<Body>, StatusCode> {
+    let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let r: TokenRequest = match serde_json::from_slice(&bytes) {
-        Ok(r) => r,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
-            return Ok(response);
-        }
-    };
+    let r: TokenRequest = serde_json::from_slice(&bytes).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
 
-    let hash = match Password::hash(&r.password) {
-        Ok(p) => p,
-        Err(e) => {
-            log::debug!("{}", e);
-            response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-            return Ok(response);
-        }
-    };
+    let hash = Password::hash(&r.password).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let hash_bytes = hash.into_bytes();
     let user = match User::from_email_and_password(pool, r.email, &hash_bytes).await {
@@ -168,14 +148,19 @@ async fn token(
             _ => {
                 // Other db error
                 log::debug!("{}", e);
-                response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
-                return Ok(response);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         },
     };
 
+    let token = gen_token(&user).map_err(|e| {
+        log::debug!("{:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
     let res = serde_json::to_string(&user).unwrap();
     *response.body_mut() = Body::from(res);
+    response.headers_mut().insert("token", token);
 
     Ok(response)
 }
@@ -251,6 +236,7 @@ mod test {
         let res = token(&app.pool, &mut body, response).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
+        assert!(res.headers().get("token").is_some());
 
         Ok(())
     }
