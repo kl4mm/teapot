@@ -49,7 +49,7 @@ async fn sign_up(
     let bytes = match hyper::body::to_bytes(body).await {
         Ok(b) => b,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
             return Ok(response);
         }
@@ -58,7 +58,7 @@ async fn sign_up(
     let r: SignupRequest = match serde_json::from_slice(&bytes) {
         Ok(r) => r,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
             return Ok(response);
         }
@@ -67,7 +67,7 @@ async fn sign_up(
     let hash = match Password::hash(&r.password) {
         Ok(p) => p,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
             return Ok(response);
         }
@@ -76,8 +76,8 @@ async fn sign_up(
     let user = match User::new(pool, r.first_name, r.last_name, r.email, hash).await {
         Ok(u) => u,
         Err(e) => match e {
-            sqlx::Error::Database(err) => {
-                if err.code().is_some() && err.code().unwrap().contains("23505") {
+            sqlx::Error::Database(e) => {
+                if e.code().is_some() && e.code().unwrap().contains("23505") {
                     // Unique violation:
                     response = set_response(
                         response,
@@ -87,13 +87,13 @@ async fn sign_up(
                     return Ok(response);
                 } else {
                     // Other db error
-                    dbg!(err);
+                    log::debug!("{}", e);
                     response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                     return Ok(response);
                 };
             }
             e => {
-                dbg!(e);
+                log::debug!("{}", e);
                 response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                 return Ok(response);
             }
@@ -103,7 +103,7 @@ async fn sign_up(
     let res = match serde_json::to_string(&user) {
         Ok(r) => r,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
             return Ok(response);
         }
@@ -129,7 +129,7 @@ async fn token(
     let bytes = match hyper::body::to_bytes(body).await {
         Ok(b) => b,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
             return Ok(response);
         }
@@ -138,7 +138,7 @@ async fn token(
     let r: TokenRequest = match serde_json::from_slice(&bytes) {
         Ok(r) => r,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::UNPROCESSABLE_ENTITY, None);
             return Ok(response);
         }
@@ -147,7 +147,7 @@ async fn token(
     let hash = match Password::hash(&r.password) {
         Ok(p) => p,
         Err(e) => {
-            dbg!(e);
+            log::debug!("{}", e);
             response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
             return Ok(response);
         }
@@ -167,7 +167,7 @@ async fn token(
             }
             _ => {
                 // Other db error
-                dbg!(e);
+                log::debug!("{}", e);
                 response = set_response(response, StatusCode::INTERNAL_SERVER_ERROR, None);
                 return Ok(response);
             }
