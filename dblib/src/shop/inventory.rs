@@ -57,8 +57,7 @@ impl Inventory {
         offset: &str,
     ) -> Result<Vec<Inventory>, sqlx::Error> {
         let sql = Self::build_get(filters, sort, limit, offset);
-        let rows = sqlx::query_as(&sql).bind(id).fetch_all(pool).await?;
-        Ok(rows)
+        Ok(sqlx::query_as(&sql).bind(id).fetch_all(pool).await?)
     }
 }
 
