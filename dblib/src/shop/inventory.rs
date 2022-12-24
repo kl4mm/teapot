@@ -1,0 +1,110 @@
+use serde::Serialize;
+use sqlx::{FromRow, PgPool};
+
+#[derive(Serialize, FromRow)]
+pub struct Inventory {
+    id: i64,
+    name: String,
+    price: i32,
+    #[serde(rename(serialize = "imageUrl"))]
+    image_url: String,
+}
+
+impl Inventory {
+    fn build_get(filters: Vec<&str>, sort: Option<&&str>, limit: &str, offset: &str) -> String {
+        let mut sql = String::from("SELECT * FROM inventory");
+
+        // Match each filter and append to query
+        let mut filterv = Vec::new();
+        for filter in filters {
+            match filter {
+                "inStock" => filterv.push("quantity > 0"),
+                _ => {}
+            }
+        }
+        // Only need WHERE if any filters were matched:
+        if filterv.len() > 0 {
+            sql.push_str(" WHERE ");
+            sql.push_str(&filterv.join(" AND "));
+        }
+
+        // Match sort, can only be one of the following:
+        if let Some(&sort) = sort {
+            match sort {
+                "price-asc" => sql.push_str(" ORDER BY price ASC"),
+                "price-desc" => sql.push_str(" ORDER BY price DESC"),
+                _ => {}
+            }
+        }
+
+        // Append LIMIT and OFFSET
+        sql.push_str(" LIMIT ");
+        sql.push_str(limit);
+        sql.push_str(" OFFSET ");
+        sql.push_str(offset);
+
+        sql
+    }
+
+    pub async fn get(
+        pool: &PgPool,
+        filters: Vec<&str>,
+        sort: Option<&&str>,
+        limit: &str,
+        offset: &str,
+    ) -> Result<Vec<Inventory>, sqlx::Error> {
+        let sql = Self::build_get(filters, sort, limit, offset);
+        let rows = sqlx::query_as(&sql).fetch_all(pool).await?;
+        Ok(rows)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Inventory;
+
+    #[test]
+    fn test_build_get_asc() {
+        let filters = vec!["inStock"];
+        let sort = Some(&"price-asc");
+        let limit = "10";
+        let offset = "0";
+
+        let sql = Inventory::build_get(filters, sort, limit, offset);
+
+        assert_eq!(
+            sql,
+            "SELECT * FROM inventory WHERE quantity > 0 ORDER BY price ASC LIMIT 10 OFFSET 0"
+        );
+    }
+
+    #[test]
+    fn test_build_get_desc() {
+        let filters = vec!["inStock"];
+        let sort = Some(&"price-desc");
+        let limit = "10";
+        let offset = "10";
+
+        let sql = Inventory::build_get(filters, sort, limit, offset);
+
+        assert_eq!(
+            sql,
+            "SELECT * FROM inventory WHERE quantity > 0 ORDER BY price DESC LIMIT 10 OFFSET 10"
+        );
+    }
+
+    #[test]
+    fn test_build_get_no_filter() {
+        let filters = vec![];
+        let sort = Some(&"price-desc");
+        let limit = "10";
+        let offset = "20";
+
+        let sql = Inventory::build_get(filters, sort, limit, offset);
+
+        assert_eq!(
+            sql,
+            "SELECT * FROM inventory ORDER BY price DESC LIMIT 10 OFFSET 20"
+        );
+    }
+}

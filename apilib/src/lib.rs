@@ -1,4 +1,17 @@
+use std::{collections::HashMap, sync::Arc};
+
 use hyper::{Body, Response, StatusCode};
+use sqlx::{Pool, Postgres};
+
+pub struct App {
+    pub pool: Pool<Postgres>,
+}
+
+impl App {
+    pub fn new(pool: Pool<Postgres>) -> Arc<Self> {
+        Arc::new(Self { pool })
+    }
+}
 
 const INTERNAL_SERVER_ERROR: &str = r#"{"message": "Internal Server Error"}"#;
 const UNPROCESSABLE_ENTITY: &str = r#"{"message": "Unprocessable Entity"}"#;
@@ -23,4 +36,24 @@ pub fn set_response(
     *response.body_mut() = body;
 
     response
+}
+
+pub fn parse_query(query: Option<&str>) -> HashMap<&str, &str> {
+    let mut query_map = HashMap::new();
+    if query.is_none() {
+        return query_map;
+    }
+
+    let queries: Vec<&str> = query.unwrap().split("&").collect();
+
+    for query in queries {
+        let (k, v) = match query.split_once("=") {
+            Some(kv) => kv,
+            None => continue,
+        };
+
+        query_map.insert(k, v);
+    }
+
+    query_map
 }

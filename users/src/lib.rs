@@ -1,22 +1,12 @@
 pub mod token;
 
-use apilib::set_response;
+use apilib::{set_response, App};
 use dblib::users::users::{Password, User};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use serde::Deserialize;
-use sqlx::{PgPool, Pool, Postgres};
+use sqlx::PgPool;
 use std::{convert::Infallible, sync::Arc};
 use token::gen_token;
-
-pub struct App {
-    pool: Pool<Postgres>,
-}
-
-impl App {
-    pub fn new(pool: Pool<Postgres>) -> Arc<Self> {
-        Arc::new(Self { pool })
-    }
-}
 
 pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let mut response = Response::new(Body::empty());

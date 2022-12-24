@@ -27,6 +27,7 @@ name = "apilib"
 version = "0.1.0"
 dependencies = [
  "hyper",
+ "sqlx",
 ]
 
 [[package]]
@@ -996,6 +997,16 @@ dependencies = [
 name = "shop"
 version = "0.1.0"
 dependencies = [
+ "apilib",
+ "dblib",
+ "env_logger",
+ "hyper",
+ "log",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "towerlib",
  "uuid",
 ]
 
