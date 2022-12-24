@@ -48,6 +48,13 @@ async fn get_inventory(
         }
     }
 
+    let id: Option<i64> = if let Some(id) = query.get("id") {
+        filter.push("id");
+        Some(id.parse().map_err(|_| StatusCode::BAD_REQUEST)?)
+    } else {
+        None
+    };
+
     let sort = query.get("sort");
     let limit = query.get("limit");
     let offset = query.get("offset");
@@ -68,7 +75,7 @@ async fn get_inventory(
         ));
     };
 
-    let inventory = Inventory::get(&pool, filter, sort, limit.unwrap(), offset.unwrap())
+    let inventory = Inventory::get(&pool, id, filter, sort, limit.unwrap(), offset.unwrap())
         .await
         .map_err(|e| {
             log::debug!("{}", e);

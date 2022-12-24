@@ -19,9 +19,11 @@ impl Inventory {
         for filter in filters {
             match filter {
                 "inStock" => filterv.push("quantity > 0"),
+                "id" => filterv.push("id = $1"),
                 _ => {}
             }
         }
+
         // Only need WHERE if any filters were matched:
         if filterv.len() > 0 {
             sql.push_str(" WHERE ");
@@ -48,13 +50,14 @@ impl Inventory {
 
     pub async fn get(
         pool: &PgPool,
+        id: Option<i64>,
         filters: Vec<&str>,
         sort: Option<&&str>,
         limit: &str,
         offset: &str,
     ) -> Result<Vec<Inventory>, sqlx::Error> {
         let sql = Self::build_get(filters, sort, limit, offset);
-        let rows = sqlx::query_as(&sql).fetch_all(pool).await?;
+        let rows = sqlx::query_as(&sql).bind(id).fetch_all(pool).await?;
         Ok(rows)
     }
 }
@@ -65,7 +68,7 @@ mod test {
 
     #[test]
     fn test_build_get_asc() {
-        let filters = vec!["inStock"];
+        let filters = vec!["inStock", "id"];
         let sort = Some(&"price-asc");
         let limit = "10";
         let offset = "0";
@@ -74,22 +77,22 @@ mod test {
 
         assert_eq!(
             sql,
-            "SELECT * FROM inventory WHERE quantity > 0 ORDER BY price ASC LIMIT 10 OFFSET 0"
+            "SELECT * FROM inventory WHERE quantity > 0 AND id = $1 ORDER BY price ASC LIMIT 10 OFFSET 0"
         );
     }
 
     #[test]
-    fn test_build_get_desc() {
-        let filters = vec!["inStock"];
+    fn test_build_get_desc_and_id() {
+        let filters = vec!["inStock", "id"];
         let sort = Some(&"price-desc");
         let limit = "10";
-        let offset = "10";
+        let offset = "0";
 
         let sql = Inventory::build_get(filters, sort, limit, offset);
 
         assert_eq!(
             sql,
-            "SELECT * FROM inventory WHERE quantity > 0 ORDER BY price DESC LIMIT 10 OFFSET 10"
+            "SELECT * FROM inventory WHERE quantity > 0 AND id = $1 ORDER BY price DESC LIMIT 10 OFFSET 0"
         );
     }
 
@@ -98,13 +101,13 @@ mod test {
         let filters = vec![];
         let sort = Some(&"price-desc");
         let limit = "10";
-        let offset = "20";
+        let offset = "0";
 
         let sql = Inventory::build_get(filters, sort, limit, offset);
 
         assert_eq!(
             sql,
-            "SELECT * FROM inventory ORDER BY price DESC LIMIT 10 OFFSET 20"
+            "SELECT * FROM inventory ORDER BY price DESC LIMIT 10 OFFSET 0"
         );
     }
 }
