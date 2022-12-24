@@ -82,7 +82,7 @@ mod test {
     }
 
     #[test]
-    fn test_build_get_desc_and_id() {
+    fn test_build_get_desc() {
         let filters = vec!["inStock", "id"];
         let sort = Some(&"price-desc");
         let limit = "10";
