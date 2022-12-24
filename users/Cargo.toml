@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 dblib = { path = "../dblib" }
 towerlib = { path = "../towerlib" }
+apilib = { path = "../apilib" }
 tokio = { workspace = true }
 hyper = { workspace = true }
 serde = { workspace = true }

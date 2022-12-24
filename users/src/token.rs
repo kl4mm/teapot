@@ -1,12 +1,10 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, env};
 
 use dblib::users::users::User;
 use hmac::{Hmac, Mac};
 use hyper::http::HeaderValue;
 use jwt::{SignWithKey, VerifyWithKey};
 use sha2::Sha256;
-
-const KEY: &[u8] = b"secret";
 
 #[derive(Debug)]
 pub enum TokenError {
@@ -15,8 +13,13 @@ pub enum TokenError {
     Verify,
 }
 
+fn get_key() -> Result<Hmac<Sha256>, TokenError> {
+    let key = env::var("TOKEN_SECRET").expect("TOKEN_SECRET must be set");
+    Hmac::new_from_slice(key.as_bytes()).map_err(|_e| TokenError::Hmac)
+}
+
 pub fn gen_token(user: &User) -> Result<HeaderValue, TokenError> {
-    let key: Hmac<Sha256> = Hmac::new_from_slice(KEY).map_err(|_e| TokenError::Hmac)?;
+    let key = get_key()?;
 
     let mut claims: BTreeMap<&str, String> = BTreeMap::new();
     claims.insert("id", user.id.to_string());
@@ -32,7 +35,7 @@ pub fn gen_token(user: &User) -> Result<HeaderValue, TokenError> {
 }
 
 pub fn verify_token(token: &str) -> Result<BTreeMap<String, String>, TokenError> {
-    let key: Hmac<Sha256> = Hmac::new_from_slice(KEY).map_err(|_e| TokenError::Hmac)?;
+    let key = get_key()?;
 
     let token: BTreeMap<String, String> = token
         .verify_with_key(&key)
