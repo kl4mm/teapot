@@ -21,10 +21,11 @@ fn get_key() -> Result<Hmac<Sha256>, TokenError> {
 pub fn gen_token(user: &User) -> Result<HeaderValue, TokenError> {
     let key = get_key()?;
 
-    let mut claims: BTreeMap<&str, String> = BTreeMap::new();
-    claims.insert("id", user.id.to_string());
-    claims.insert("email", user.email.to_owned());
-    claims.insert("role", "user".to_owned());
+    let claims: BTreeMap<&str, String> = BTreeMap::from([
+        ("id", user.id.to_string()),
+        ("email", user.email.to_owned()),
+        ("role", "user".to_owned()),
+    ]);
 
     let token = claims
         .sign_with_key(&key)
