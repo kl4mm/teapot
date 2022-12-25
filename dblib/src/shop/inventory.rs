@@ -1,5 +1,5 @@
-use serde::Serialize;
-use sqlx::{FromRow, PgPool};
+use serde::{Serialize, Serializer};
+use sqlx::{types::chrono, FromRow, PgPool};
 
 #[derive(Serialize, FromRow)]
 pub struct Inventory {
@@ -8,6 +8,16 @@ pub struct Inventory {
     price: i32,
     #[serde(rename(serialize = "imageUrl"))]
     image_url: String,
+    description: String,
+    #[serde(serialize_with = "serialize_dt", rename(serialize = "createdAt"))]
+    created_at: chrono::DateTime<chrono::Utc>,
+}
+
+pub fn serialize_dt<S>(dt: &chrono::DateTime<chrono::Utc>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&chrono::DateTime::to_rfc3339(dt))
 }
 
 impl Inventory {
