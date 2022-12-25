@@ -45,6 +45,7 @@ impl Inventory {
             match sort {
                 "price-asc" => sql.push_str(" ORDER BY price ASC"),
                 "price-desc" => sql.push_str(" ORDER BY price DESC"),
+                "newest" => sql.push_str(" ORDER BY created_at DESC"),
                 _ => {}
             }
         }
