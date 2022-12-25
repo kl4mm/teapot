@@ -40,7 +40,7 @@ impl User {
         .bind(&last_name)
         .bind(&email)
         .bind(password.into_bytes())
-        .fetch_one(&*pool)
+        .fetch_one(pool)
         .await?;
 
         let id = row.try_get("id")?;
