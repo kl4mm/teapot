@@ -9,9 +9,9 @@ clean:
 sql:
 	cd database && cat users.sql shop.sql > init.sql && cd ..
 test:
-	DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo test -- --nocapture
+	RUST_LOG=debug DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo test -- --nocapture
 
 runusers:
-	DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo run -p users
+	RUST_LOG=debug DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo run -p users
 runshop:
-	DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo run -p shop
+	RUST_LOG=debug DATABASE_URL=postgres://postgres:postgres@localhost:5432 TOKEN_SECRET=secret cargo run -p shop

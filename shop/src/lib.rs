@@ -2,7 +2,7 @@ pub mod address;
 pub mod inventory;
 pub mod orders;
 
-use address::post_address;
+use address::{get_address, post_address};
 use apilib::{set_response, App};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use inventory::get_inventory;
@@ -21,7 +21,7 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
         // (Method::POST, "/token") => token(&app.pool, &mut body, response).await,
         (Method::GET, "/inventory") => get_inventory(&app.pool, parts.uri.query(), response).await,
         (Method::POST, "/address") => post_address(&app.pool, &mut body, response).await,
-        (Method::GET, "/address") => todo!(),
+        (Method::GET, "/address") => get_address(&app.pool, parts.uri.query(), response).await,
         (Method::POST, "/orders") => todo!(),
         (Method::GET, "/orders") => todo!(),
         _ => {
