@@ -1,9 +1,11 @@
 pub mod address;
+pub mod cart;
 pub mod inventory;
 pub mod orders;
 
 use address::{get_address, post_address};
 use apilib::{set_response, App};
+use cart::{delete_cart, get_cart, patch_cart, post_cart};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use inventory::get_inventory;
 use std::{convert::Infallible, sync::Arc};
@@ -17,11 +19,39 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
     let (parts, mut body) = req.into_parts();
 
     let response = match (parts.method, parts.uri.path()) {
-        // (Method::POST, "/") => sign_up(&app.pool, &mut body, response).await,
-        // (Method::POST, "/token") => token(&app.pool, &mut body, response).await,
         (Method::GET, "/inventory") => get_inventory(&app.pool, parts.uri.query(), response).await,
         (Method::POST, "/address") => post_address(&app.pool, &mut body, response).await,
         (Method::GET, "/address") => get_address(&app.pool, parts.uri.query(), response).await,
+        (Method::GET, "/cart") => {
+            get_cart(app.redis.as_ref().unwrap(), &parts.headers, response).await
+        }
+        (Method::POST, "/cart") => {
+            post_cart(
+                app.redis.as_ref().unwrap(),
+                &parts.headers,
+                &mut body,
+                response,
+            )
+            .await
+        }
+        (Method::PATCH, "/cart") => {
+            patch_cart(
+                app.redis.as_ref().unwrap(),
+                &parts.headers,
+                &mut body,
+                response,
+            )
+            .await
+        }
+        (Method::DELETE, "/cart") => {
+            delete_cart(
+                app.redis.as_ref().unwrap(),
+                &parts.headers,
+                &mut body,
+                response,
+            )
+            .await
+        }
         (Method::POST, "/orders") => todo!(),
         (Method::GET, "/orders") => todo!(),
         _ => {

@@ -15,7 +15,7 @@ async fn main() {
 
     let pool = connect("users").await.unwrap();
 
-    let app = App::new(pool);
+    let app = App::new(pool, None);
 
     let make_service = make_service_fn(move |_: &AddrStream| {
         // Clone for each invocation of make_service

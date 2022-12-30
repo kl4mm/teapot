@@ -1,21 +1,22 @@
 use std::{convert::Infallible, net::SocketAddr};
 
 use apilib::App;
-use dblib::connect;
 use hyper::{
     server::conn::AddrStream,
     service::{make_service_fn, service_fn},
     Server,
 };
+use redis::Client as RedisClient;
 use towerlib::logging::Logging;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
 
-    let pool = connect("shop").await.unwrap();
+    let pool = dblib::connect("shop").await.unwrap();
+    let redis = RedisClient::open("redis://:redis@127.0.0.1/").unwrap();
 
-    let app = App::new(pool);
+    let app = App::new(pool, Some(redis));
 
     let make_service = make_service_fn(move |_: &AddrStream| {
         // Clone for each invocation of make_service

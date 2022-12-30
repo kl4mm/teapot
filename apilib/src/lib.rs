@@ -1,15 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
 
 use hyper::{Body, Response, StatusCode};
+use redis::Client as RedisClient;
 use sqlx::{Pool, Postgres};
 
 pub struct App {
     pub pool: Pool<Postgres>,
+    pub redis: Option<RedisClient>,
 }
 
 impl App {
-    pub fn new(pool: Pool<Postgres>) -> Arc<Self> {
-        Arc::new(Self { pool })
+    pub fn new(pool: Pool<Postgres>, redis: Option<RedisClient>) -> Arc<Self> {
+        Arc::new(Self { pool, redis })
     }
 }
 

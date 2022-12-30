@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 hyper = { workspace = true }
 sqlx = { workspace = true }
+redis = { workspace = true }

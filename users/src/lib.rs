@@ -164,7 +164,7 @@ mod test {
 
     #[sqlx::test(fixtures("users"))]
     async fn test_sign_up(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        let app = App::new(pool);
+        let app = App::new(pool, None);
 
         let mut body = Body::from(
             "\
@@ -187,7 +187,7 @@ mod test {
 
     #[sqlx::test(fixtures("users"))]
     async fn test_token(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        let app = App::new(pool);
+        let app = App::new(pool, None);
 
         let mut body = Body::from(
             "\

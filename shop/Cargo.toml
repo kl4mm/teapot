@@ -17,3 +17,4 @@ sqlx = { workspace = true }
 env_logger  = { workspace = true }
 log = { workspace = true }
 uuid = { workspace = true }
+redis = { workspace = true }
