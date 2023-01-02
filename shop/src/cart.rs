@@ -3,13 +3,14 @@ use std::collections::HashSet;
 use hyper::{Body, HeaderMap, Response, StatusCode};
 use redis::{AsyncCommands, Client as RedisClient};
 use serde::{Deserialize, Serialize};
+use towerlib::session::SESSION_ID;
 
 #[derive(Serialize, Deserialize)]
 struct CartItem {
     id: i64,
     name: String,
     price: i32,
-    #[serde(rename(deserialize = "imageUrl"))]
+    #[serde(rename(deserialize = "imageUrl", serialize = "imageUrl"))]
     image_url: String,
     quantity: i32,
 }
@@ -20,9 +21,9 @@ pub async fn get_cart(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
     // TODO: session middleware
-    let session = match headers.get("Session-ID") {
+    let session = match headers.get(SESSION_ID) {
         Some(s) => s.to_str().map_err(|e| {
-            log::debug!("{}", e);
+            log::error!("{}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?,
         // Theres was a problem assigning a session ID
@@ -31,7 +32,7 @@ pub async fn get_cart(
     };
 
     let mut con = redis.get_async_connection().await.map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -39,7 +40,7 @@ pub async fn get_cart(
     key.push_str(session);
 
     let cart: HashSet<String> = con.smembers(key).await.map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -47,14 +48,14 @@ pub async fn get_cart(
 
     for item in &cart {
         let i: CartItem = serde_json::from_str(&item).map_err(|e| {
-            log::debug!("{}", e);
+            log::error!("{}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
         res.push(i)
     }
 
     let res = serde_json::to_string(&res).map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -71,9 +72,9 @@ pub async fn post_cart(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
     // TODO: session middleware
-    let session = match headers.get("Session-ID") {
+    let session = match headers.get(SESSION_ID) {
         Some(s) => s.to_str().map_err(|e| {
-            log::debug!("{}", e);
+            log::error!("{}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?,
         // Theres was a problem assigning a session ID
@@ -82,23 +83,20 @@ pub async fn post_cart(
     };
 
     let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     // Check if valid request:
-    serde_json::from_slice::<CartItem>(&bytes).map_err(|e| {
+    let json = serde_json::from_slice::<CartItem>(&bytes).map_err(|e| {
         log::error!("{}", e);
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
-    let body_str = std::str::from_utf8(&bytes).map_err(|e| {
-        log::debug!("{}", e);
-        StatusCode::BAD_REQUEST
-    })?;
+    let body_str = serde_json::to_string(&json).unwrap();
 
     let mut con = redis.get_async_connection().await.map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -106,7 +104,7 @@ pub async fn post_cart(
     key.push_str(session);
 
     con.sadd(key, body_str).await.map_err(|e| {
-        log::debug!("{}", e);
+        log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -128,7 +126,65 @@ pub async fn patch_cart(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    todo!()
+    // TODO: session middleware
+    let session = match headers.get(SESSION_ID) {
+        Some(s) => s.to_str().map_err(|e| {
+            log::error!("{}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?,
+        // Theres was a problem assigning a session ID
+        // in the middleware:
+        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
+    };
+
+    let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let r: PatchCartRequest = serde_json::from_slice(&bytes).map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let old = serde_json::to_string(&r.old).map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    dbg!(&old);
+    log::debug!("{}", old);
+
+    let new = serde_json::to_string(&r.new).map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    dbg!(&new);
+    log::debug!("{}", new);
+
+    let mut con = redis.get_async_connection().await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut key = String::from("cart:");
+    key.push_str(session);
+    dbg!(&key);
+
+    // TODO: redis::transaction doesn't take async connection?
+    con.srem(&key, old).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    con.sadd(&key, new).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    *response.status_mut() = StatusCode::OK;
+    *response.body_mut() = Body::from("{\"message\": \"success\"}");
+
+    Ok(response)
 }
 
 pub async fn delete_cart(
@@ -137,5 +193,44 @@ pub async fn delete_cart(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    todo!()
+    // TODO: session middleware
+    let session = match headers.get(SESSION_ID) {
+        Some(s) => s.to_str().map_err(|e| {
+            log::error!("{}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?,
+        // Theres was a problem assigning a session ID
+        // in the middleware:
+        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
+    };
+
+    let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let json = serde_json::from_slice::<CartItem>(&bytes).map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let body_str = serde_json::to_string(&json).unwrap();
+
+    let mut con = redis.get_async_connection().await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut key = String::from("cart:");
+    key.push_str(session);
+
+    con.srem(&key, body_str).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    *response.status_mut() = StatusCode::OK;
+    *response.body_mut() = Body::from("{\"message\": \"success\"}");
+
+    Ok(response)
 }
