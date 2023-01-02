@@ -11,3 +11,4 @@ tower = { workspace = true }
 env_logger  = { workspace = true }
 log = { workspace = true }
 pin-project = { workspace = true }
+rand = "0.8.5"

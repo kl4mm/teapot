@@ -7,7 +7,7 @@ use hyper::{
     Server,
 };
 use redis::Client as RedisClient;
-use towerlib::logging::Logging;
+use towerlib::{logging::Logging, session::Session};
 
 #[tokio::main]
 async fn main() {
@@ -23,6 +23,7 @@ async fn main() {
         let app = app.clone();
 
         let svc = service_fn(move |req| shop::handle(app.clone(), req));
+        let svc = Session::new(svc);
         let svc = Logging::new(svc);
 
         async move { Ok::<_, Infallible>(svc) }

@@ -7,6 +7,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use std::{convert::Infallible, sync::Arc};
 use token::gen_token;
+use towerlib::session::{gen_session, SESSION_ID};
 
 pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let mut response = Response::new(Body::empty());
@@ -17,8 +18,9 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
     let (parts, mut body) = req.into_parts();
 
     let response = match (parts.method, parts.uri.path()) {
-        (Method::POST, "/") => sign_up(&app.pool, &mut body, response).await,
-        (Method::POST, "/token") => token(&app.pool, &mut body, response).await,
+        (Method::POST, "/") => post_sign_up(&app.pool, &mut body, response).await,
+        (Method::POST, "/token") => post_token(&app.pool, &mut body, response).await,
+        (Method::GET, "/session") => get_session(response).await,
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
             Ok(response)
@@ -43,7 +45,7 @@ struct SignupRequest {
     password: String,
 }
 
-async fn sign_up(
+async fn post_sign_up(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,
@@ -104,7 +106,7 @@ struct TokenRequest {
     password: String,
 }
 
-async fn token(
+async fn post_token(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,
@@ -156,11 +158,21 @@ async fn token(
     Ok(response)
 }
 
+async fn get_session(mut response: Response<Body>) -> Result<Response<Body>, StatusCode> {
+    let session_id = gen_session();
+
+    response
+        .headers_mut()
+        .insert(SESSION_ID, HeaderValue::from_str(&session_id).unwrap());
+
+    Ok(response)
+}
+
 #[cfg(test)]
 mod test {
     use hyper::{Body, Response, StatusCode};
 
-    use super::{sign_up, token, App};
+    use super::{post_sign_up, post_token, App};
 
     #[sqlx::test(fixtures("users"))]
     async fn test_sign_up(pool: sqlx::PgPool) -> sqlx::Result<()> {
@@ -178,7 +190,7 @@ mod test {
 
         let response = Response::new(Body::empty());
 
-        let res = sign_up(&app.pool, &mut body, response).await.unwrap();
+        let res = post_sign_up(&app.pool, &mut body, response).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::CREATED);
 
@@ -199,7 +211,7 @@ mod test {
 
         let response = Response::new(Body::empty());
 
-        let res = token(&app.pool, &mut body, response).await.unwrap();
+        let res = post_token(&app.pool, &mut body, response).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
         assert!(res.headers().get("token").is_some());

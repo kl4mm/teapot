@@ -1497,6 +1497,7 @@ dependencies = [
  "hyper",
  "log",
  "pin-project",
+ "rand",
  "tower",
 ]
 
