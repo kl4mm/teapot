@@ -3,7 +3,13 @@ use std::collections::HashSet;
 use hyper::{Body, HeaderMap, Response, StatusCode};
 use redis::{AsyncCommands, Client as RedisClient};
 use serde::{Deserialize, Serialize};
-use towerlib::session::SESSION_ID;
+use towerlib::session::get_session;
+
+fn cart_key(session_id: &str) -> String {
+    let mut key = String::from("cart:");
+    key.push_str(session_id);
+    key
+}
 
 #[derive(Serialize, Deserialize)]
 struct CartItem {
@@ -20,24 +26,14 @@ pub async fn get_cart(
     headers: &HeaderMap,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    // TODO: session middleware
-    let session = match headers.get(SESSION_ID) {
-        Some(s) => s.to_str().map_err(|e| {
-            log::error!("{}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        // Theres was a problem assigning a session ID
-        // in the middleware:
-        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
-    };
+    let session = get_session(&headers)?;
 
     let mut con = redis.get_async_connection().await.map_err(|e| {
         log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut key = String::from("cart:");
-    key.push_str(session);
+    let key = cart_key(session);
 
     let cart: HashSet<String> = con.smembers(key).await.map_err(|e| {
         log::error!("{}", e);
@@ -71,16 +67,7 @@ pub async fn post_cart(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    // TODO: session middleware
-    let session = match headers.get(SESSION_ID) {
-        Some(s) => s.to_str().map_err(|e| {
-            log::error!("{}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        // Theres was a problem assigning a session ID
-        // in the middleware:
-        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
-    };
+    let session = get_session(&headers)?;
 
     let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
         log::error!("{}", e);
@@ -100,8 +87,7 @@ pub async fn post_cart(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut key = String::from("cart:");
-    key.push_str(session);
+    let key = cart_key(session);
 
     con.sadd(key, body_str).await.map_err(|e| {
         log::error!("{}", e);
@@ -126,16 +112,7 @@ pub async fn patch_cart(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    // TODO: session middleware
-    let session = match headers.get(SESSION_ID) {
-        Some(s) => s.to_str().map_err(|e| {
-            log::error!("{}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        // Theres was a problem assigning a session ID
-        // in the middleware:
-        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
-    };
+    let session = get_session(&headers)?;
 
     let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
         log::error!("{}", e);
@@ -166,9 +143,7 @@ pub async fn patch_cart(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut key = String::from("cart:");
-    key.push_str(session);
-    dbg!(&key);
+    let key = cart_key(session);
 
     // TODO: redis::transaction doesn't take async connection?
     con.srem(&key, old).await.map_err(|e| {
@@ -193,16 +168,7 @@ pub async fn delete_cart(
     body: &mut Body,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    // TODO: session middleware
-    let session = match headers.get(SESSION_ID) {
-        Some(s) => s.to_str().map_err(|e| {
-            log::error!("{}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        // Theres was a problem assigning a session ID
-        // in the middleware:
-        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
-    };
+    let session = get_session(&headers)?;
 
     let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
         log::error!("{}", e);
@@ -221,8 +187,7 @@ pub async fn delete_cart(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut key = String::from("cart:");
-    key.push_str(session);
+    let key = cart_key(session);
 
     con.srem(&key, body_str).await.map_err(|e| {
         log::error!("{}", e);

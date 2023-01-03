@@ -1,4 +1,4 @@
-use hyper::{http::HeaderValue, Request};
+use hyper::{http::HeaderValue, HeaderMap, Request, StatusCode};
 use rand::Rng;
 use tower::Service;
 
@@ -48,4 +48,18 @@ where
 pub fn gen_session() -> String {
     let mut rng = rand::thread_rng();
     rng.gen_range(0..100_000).to_string()
+}
+
+pub fn get_session(headers: &HeaderMap) -> Result<&str, StatusCode> {
+    let session = match headers.get(SESSION_ID) {
+        Some(s) => s.to_str().map_err(|e| {
+            log::error!("{}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?,
+        // Theres was a problem assigning a session ID
+        // in the middleware:
+        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
+    };
+
+    Ok(session)
 }
