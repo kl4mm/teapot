@@ -128,15 +128,11 @@ pub async fn patch_cart(
         log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    dbg!(&old);
-    log::debug!("{}", old);
 
     let new = serde_json::to_string(&r.new).map_err(|e| {
         log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    dbg!(&new);
-    log::debug!("{}", new);
 
     let mut con = redis.get_async_connection().await.map_err(|e| {
         log::error!("{}", e);
