@@ -7,11 +7,12 @@ use sqlx::PgPool;
 struct PostOrdersRequest {
     #[serde(rename(deserialize = "userId"))]
     user_id: i64,
+    #[serde(rename(deserialize = "addressId"))]
     address_id: i64,
     items: Vec<OrderRequest>,
 }
 
-pub async fn get_cart(
+pub async fn post_orders(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,

@@ -8,6 +8,7 @@ use apilib::{set_response, App};
 use cart::{delete_cart, get_cart, patch_cart, post_cart};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use inventory::get_inventory;
+use orders::post_orders;
 use std::{convert::Infallible, sync::Arc};
 
 pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>, Infallible> {
@@ -52,7 +53,7 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
             )
             .await
         }
-        (Method::POST, "/orders") => todo!(),
+        (Method::POST, "/orders") => post_orders(&app.pool, &mut body, response).await,
         (Method::GET, "/orders") => todo!(),
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
