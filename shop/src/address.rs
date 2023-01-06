@@ -8,6 +8,10 @@ use sqlx::PgPool;
 struct PostAddressRequest {
     #[serde(rename(deserialize = "userId"))]
     user_id: i64,
+    #[serde(rename(deserialize = "firstName"))]
+    first_name: String,
+    #[serde(rename(deserialize = "lastName"))]
+    last_name: String,
     #[serde(rename(deserialize = "address1"))]
     address_1: String,
     #[serde(rename(deserialize = "address2"))]
@@ -34,6 +38,8 @@ pub async fn post_address(
     let address = Address::new(
         pool,
         r.user_id,
+        r.first_name,
+        r.last_name,
         r.address_1,
         r.address_2,
         r.postcode,
