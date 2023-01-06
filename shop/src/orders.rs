@@ -1,7 +1,9 @@
+use apilib::set_response;
 use dblib::shop::orders::{Order, OrderRequest};
 use hyper::{Body, Response, StatusCode};
 use serde::Deserialize;
 use sqlx::PgPool;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 struct PostOrdersRequest {
@@ -44,4 +46,56 @@ pub async fn post_orders(
     *response.body_mut() = Body::from(res);
 
     Ok(response)
+}
+
+pub async fn get_orders(
+    pool: &PgPool,
+    query: Option<&str>,
+    mut response: Response<Body>,
+) -> Result<Response<Body>, StatusCode> {
+    let query = apilib::parse_query(query);
+
+    let mut filter = Vec::new();
+
+    let user_id = match query.get("userId") {
+        Some(&q) => {
+            filter.push(q);
+            q
+        }
+        None => {
+            return Ok(set_response(
+                response,
+                StatusCode::BAD_REQUEST,
+                Some("{\"message\": \"userId is required\"}"),
+            ));
+        }
+    };
+
+    let id: Option<Uuid> = if let Some(id) = query.get("id") {
+        filter.push("id");
+        Some(id.parse().map_err(|_| StatusCode::BAD_REQUEST)?)
+    } else {
+        None
+    };
+
+    let limit = query.get("limit");
+    let offset = query.get("offset");
+
+    if let None = limit {
+        return Ok(set_response(
+            response,
+            StatusCode::BAD_REQUEST,
+            Some("{\"message\": \"limit is required\"}"),
+        ));
+    };
+
+    if let None = offset {
+        return Ok(set_response(
+            response,
+            StatusCode::BAD_REQUEST,
+            Some("{\"message\": \"offset is required\"}"),
+        ));
+    };
+
+    todo!()
 }
