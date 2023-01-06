@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS inventory(
 CREATE TABLE IF NOT EXISTS address(
     id         BIGSERIAL,
     user_id    BIGINT,
+    first_name VARCHAR(100),
+    last_name  VARCHAR(100),
     address_1  VARCHAR(100),
     address_2  VARCHAR(100),
     postcode   VARCHAR(100),
@@ -39,8 +41,8 @@ CREATE INDEX address_user_id ON address (user_id);
 CREATE TABLE IF NOT EXISTS orders(
     id UUID,
     user_id BIGINT,
-    status VARCHAR(20),
-    address_id REFERENCES "address" (id),
+    status VARCHAR(20) DEFAULT 'PENDING',
+    address_id BIGINT REFERENCES "address" (id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (id)
 );
@@ -49,11 +51,11 @@ CREATE INDEX orders_user_id ON orders (user_id);
 CREATE TABLE IF NOT EXISTS order_items(
     order_id UUID REFERENCES "orders" (id),
     inventory_id BIGINT,
-    quantity INT,
+    quantity INT
 );
 
-INSERT INTO address (user_id, address_1, address_2, postcode, city) VALUES 
-(1, '1 bob st', '', 'm1abc', 'manchester');
+INSERT INTO address (user_id, first_name, last_name, address_1, address_2, postcode, city) VALUES 
+(1, 'bob', 'smith', '1 bob st', '', 'm1abc', 'manchester');
 
 INSERT INTO inventory (name, price, quantity, image_url, description) VALUES
 ('Clipper Earl Grey - 80 Teabags', 299, 100, 'https://digitalcontent.api.tesco.com/v2/media/ghs/06da6f5a-c9cc-4c1e-aa3b-4491ab29e3d8/a8e9adb6-5e21-42cb-9876-24ca40a1d269_150922527.jpeg?h=540&w=540', '80 Unbleached, plastic-free bags of organic earl grey tea'),
