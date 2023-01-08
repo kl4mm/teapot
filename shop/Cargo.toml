@@ -9,6 +9,7 @@ edition = "2021"
 dblib = { path = "../dblib" }
 towerlib = { path = "../towerlib" }
 apilib = { path = "../apilib" }
+query = { path = "../query" }
 tokio = { workspace = true }
 hyper = { workspace = true }
 serde = { workspace = true }

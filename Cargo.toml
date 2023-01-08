@@ -1,5 +1,5 @@
 [workspace]
-members = ["users", "shop", "dblib", "towerlib", "apilib"]
+members = ["users", "shop", "dblib", "towerlib", "apilib", "query"]
 exclude = ["database", "apispec"]
 
 [workspace.dependencies]

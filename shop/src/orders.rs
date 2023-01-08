@@ -1,9 +1,9 @@
 use apilib::set_response;
 use dblib::shop::orders::{Order, OrderRequest};
 use hyper::{Body, Response, StatusCode};
+use query::query::Query;
 use serde::Deserialize;
 use sqlx::PgPool;
-use uuid::Uuid;
 
 #[derive(Deserialize)]
 struct PostOrdersRequest {
@@ -53,49 +53,42 @@ pub async fn get_orders(
     query: Option<&str>,
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
-    let query = apilib::parse_query(query);
+    let query = query.unwrap_or("");
+    let parsed: Query = query.parse().map_err(|e| {
+        log::debug!("{:?}", e);
+        StatusCode::BAD_REQUEST
+    })?;
 
-    let mut filter = Vec::new();
-
-    let user_id = match query.get("userId") {
-        Some(&q) => {
-            filter.push(q);
-            q
-        }
-        None => {
-            return Ok(set_response(
-                response,
-                StatusCode::BAD_REQUEST,
-                Some("{\"message\": \"userId is required\"}"),
-            ));
-        }
-    };
-
-    let id: Option<Uuid> = if let Some(id) = query.get("id") {
-        filter.push("id");
-        Some(id.parse().map_err(|_| StatusCode::BAD_REQUEST)?)
-    } else {
-        None
-    };
-
-    let limit = query.get("limit");
-    let offset = query.get("offset");
-
-    if let None = limit {
+    if let Err(e) = parsed.check_valid(vec!["userId"]) {
         return Ok(set_response(
             response,
             StatusCode::BAD_REQUEST,
-            Some("{\"message\": \"limit is required\"}"),
+            // TODO: Would be better if Err was (StatusCode, Option<serde_json::Value>)
+            Some(&serde_json::json!({ "message": e }).to_string()),
         ));
-    };
+    }
 
-    if let None = offset {
+    if let Err(e) = parsed.check_limit_and_offset() {
         return Ok(set_response(
             response,
             StatusCode::BAD_REQUEST,
-            Some("{\"message\": \"offset is required\"}"),
+            // TODO: Would be better if Err was (StatusCode, Option<serde_json::Value>)
+            Some(&serde_json::json!({ "message": e }).to_string()),
         ));
-    };
+    }
 
-    todo!()
+    let orders = Order::get(pool, &parsed).await.map_err(|e| {
+        log::error!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let res = serde_json::to_string(&orders).map_err(|e| {
+        log::debug!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    *response.status_mut() = StatusCode::OK;
+    *response.body_mut() = Body::from(res);
+
+    Ok(response)
 }

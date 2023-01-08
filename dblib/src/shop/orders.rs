@@ -1,3 +1,4 @@
+use query::{query::Query, sql};
 use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{types::chrono, FromRow, PgPool};
 use uuid::Uuid;
@@ -10,7 +11,7 @@ pub struct OrderRequest {
     quantity: i32,
 }
 
-#[derive(Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct Order {
     #[serde(serialize_with = "serialize_uuid")]
     id: Uuid,
@@ -83,44 +84,37 @@ impl Order {
         Ok(uuid)
     }
 
-    fn build_get(filters: Vec<&str>, limit: &str, offset: &str) -> String {
-        let mut sql = String::from("SELECT * FROM orders");
+    pub async fn get(pool: &PgPool, query: &Query) -> Result<Vec<Order>, sqlx::Error> {
+        let (sql, fields) = sql::gen_psql(&query, "orders", vec!["*"], vec![]);
+        let mut query = sqlx::query_as(&sql);
 
-        // Match each filter and append to query
-        let mut filterv = Vec::new();
-        for filter in filters {
-            match filter {
-                "userId" => filterv.push("user_id = $1"),
-                "id" => filterv.push("id = $2"),
-                _ => {}
+        for (field, param) in fields {
+            match field {
+                "id" => {
+                    let id: Uuid = param.parse().unwrap();
+                    query = query.bind(id);
+                }
+                "userId" => {
+                    let user_id: i64 = param.parse().unwrap();
+                    query = query.bind(user_id);
+                }
+                // TODO: Why does this not work?
+                // "limit" => {
+                //     let limit: i64 = param.parse().unwrap();
+                //     dbg!(&limit);
+                //     query = query.bind(limit);
+                // }
+                // "offset" => {
+                //     let offset: i64 = param.parse().unwrap();
+                //     dbg!(&offset);
+                //     query = query.bind(offset);
+                // }
+                _ => {
+                    query = query.bind(param);
+                }
             }
         }
 
-        sql.push_str(" WHERE ");
-        sql.push_str(&filterv.join(" AND "));
-
-        // Append LIMIT and OFFSET
-        sql.push_str(" LIMIT ");
-        sql.push_str(limit);
-        sql.push_str(" OFFSET ");
-        sql.push_str(offset);
-
-        sql
-    }
-
-    pub async fn get(
-        pool: &PgPool,
-        id: Option<Uuid>,
-        user_id: i64,
-        filters: Vec<&str>,
-        limit: &str,
-        offset: &str,
-    ) -> Result<Vec<Order>, sqlx::Error> {
-        let sql = Self::build_get(filters, limit, offset);
-        Ok(sqlx::query_as(&sql)
-            .bind(user_id)
-            .bind(id)
-            .fetch_all(pool)
-            .await?)
+        Ok(query.fetch_all(pool).await?)
     }
 }
