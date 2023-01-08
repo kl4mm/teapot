@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use apilib::set_response;
 use dblib::shop::orders::{Order, OrderRequest};
 use hyper::{Body, Response, StatusCode};
@@ -54,7 +56,8 @@ pub async fn get_orders(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
     let query = query.unwrap_or("");
-    let parsed: Query = query.parse().map_err(|e| {
+    let allowed_fields = HashSet::from(["userId", "id"]);
+    let parsed = Query::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
         StatusCode::BAD_REQUEST
     })?;

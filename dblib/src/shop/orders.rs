@@ -98,17 +98,6 @@ impl Order {
                     let user_id: i64 = param.parse().unwrap();
                     query = query.bind(user_id);
                 }
-                // TODO: Why does this not work?
-                // "limit" => {
-                //     let limit: i64 = param.parse().unwrap();
-                //     dbg!(&limit);
-                //     query = query.bind(limit);
-                // }
-                // "offset" => {
-                //     let offset: i64 = param.parse().unwrap();
-                //     dbg!(&offset);
-                //     query = query.bind(offset);
-                // }
                 _ => {
                     query = query.bind(param);
                 }
