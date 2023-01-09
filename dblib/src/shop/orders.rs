@@ -98,9 +98,7 @@ impl Order {
                     let user_id: i64 = param.parse().unwrap();
                     query = query.bind(user_id);
                 }
-                _ => {
-                    query = query.bind(param);
-                }
+                _ => {}
             }
         }
 
