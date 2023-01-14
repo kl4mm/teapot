@@ -1,4 +1,7 @@
-use query::{query::Query, sql};
+use query::{
+    sql::{Database::Postgres, QueryBuilder},
+    UrlQuery,
+};
 use serde::{Serialize, Serializer};
 use sqlx::{types::chrono, FromRow, PgPool};
 
@@ -23,14 +26,13 @@ where
 }
 
 impl Inventory {
-    pub async fn get(pool: &PgPool, query: &Query) -> Result<Vec<Inventory>, sqlx::Error> {
-        let (sql, fields) = sql::gen_psql(&query, "inventory", vec!["*"], vec![]);
-        dbg!(&sql);
-        dbg!(&fields);
+    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Inventory>, sqlx::Error> {
+        let (sql, fields) =
+            QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres).build();
 
         let mut query = sqlx::query_as(&sql);
         for (field, param) in fields {
-            match field {
+            match field.as_str() {
                 "id" => {
                     let id: i64 = param.parse().unwrap();
                     query = query.bind(id);

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use apilib::set_response;
 use dblib::shop::address::Address;
 use hyper::{Body, Response, StatusCode};
-use query::query::Query;
+use query::UrlQuery;
 use serde::Deserialize;
 use sqlx::PgPool;
 
@@ -71,13 +71,13 @@ pub async fn get_address(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, StatusCode> {
     let query = query.unwrap_or("");
-    let allowed_fields = HashSet::from(["quantity", "id", "price", "createdAt"]);
-    let parsed = Query::new(query, &allowed_fields).map_err(|e| {
+    let allowed_fields = HashSet::from(["userId"]);
+    let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
         StatusCode::BAD_REQUEST
     })?;
 
-    if let Err(e) = parsed.check_valid(vec!["userId"]) {
+    if let Err(e) = parsed.check_required(vec!["userId"]) {
         return Ok(set_response(
             response,
             StatusCode::BAD_REQUEST,
@@ -95,7 +95,7 @@ pub async fn get_address(
         ));
     }
 
-    let addresses = Address::get(pool, &parsed).await.map_err(|e| {
+    let addresses = Address::get(pool, parsed).await.map_err(|e| {
         log::debug!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

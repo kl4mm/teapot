@@ -1,4 +1,7 @@
-use query::{query::Query, sql};
+use query::{
+    sql::{Database::Postgres, QueryBuilder},
+    UrlQuery,
+};
 use serde::Serialize;
 use sqlx::{FromRow, PgPool, Row};
 
@@ -60,12 +63,13 @@ impl Address {
         })
     }
 
-    pub async fn get(pool: &PgPool, query: &Query) -> Result<Vec<Self>, sqlx::Error> {
-        let (sql, fields) = sql::gen_psql(&query, "address", vec!["*"], vec![]);
+    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Self>, sqlx::Error> {
+        let (sql, fields) =
+            QueryBuilder::from_str("SELECT * FROM address", query, Postgres).build();
         let mut query = sqlx::query_as(&sql);
 
         for (field, param) in fields {
-            match field {
+            match field.as_str() {
                 "userId" => {
                     let user_id: i64 = param.parse().unwrap();
                     query = query.bind(user_id);

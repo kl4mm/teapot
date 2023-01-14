@@ -1,4 +1,7 @@
-use query::{query::Query, sql};
+use query::{
+    sql::{Database::Postgres, QueryBuilder},
+    UrlQuery,
+};
 use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{types::chrono, FromRow, PgPool};
 use uuid::Uuid;
@@ -84,12 +87,12 @@ impl Order {
         Ok(uuid)
     }
 
-    pub async fn get(pool: &PgPool, query: &Query) -> Result<Vec<Order>, sqlx::Error> {
-        let (sql, fields) = sql::gen_psql(&query, "orders", vec!["*"], vec![]);
+    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Order>, sqlx::Error> {
+        let (sql, fields) = QueryBuilder::from_str("SELECT * FROM orders", query, Postgres).build();
         let mut query = sqlx::query_as(&sql);
 
         for (field, param) in fields {
-            match field {
+            match field.as_str() {
                 "id" => {
                     let id: Uuid = param.parse().unwrap();
                     query = query.bind(id);

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use apilib::set_response;
 use dblib::shop::orders::{Order, OrderRequest};
 use hyper::{Body, Response, StatusCode};
-use query::query::Query;
+use query::UrlQuery;
 use serde::Deserialize;
 use sqlx::PgPool;
 
@@ -57,12 +57,12 @@ pub async fn get_orders(
 ) -> Result<Response<Body>, StatusCode> {
     let query = query.unwrap_or("");
     let allowed_fields = HashSet::from(["userId", "id"]);
-    let parsed = Query::new(query, &allowed_fields).map_err(|e| {
+    let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
         StatusCode::BAD_REQUEST
     })?;
 
-    if let Err(e) = parsed.check_valid(vec!["userId"]) {
+    if let Err(e) = parsed.check_required(vec!["userId"]) {
         return Ok(set_response(
             response,
             StatusCode::BAD_REQUEST,
@@ -80,7 +80,7 @@ pub async fn get_orders(
         ));
     }
 
-    let orders = Order::get(pool, &parsed).await.map_err(|e| {
+    let orders = Order::get(pool, parsed).await.map_err(|e| {
         log::error!("{}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
