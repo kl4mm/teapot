@@ -25,6 +25,7 @@ pub struct Order {
     address_id: i64,
     #[serde(serialize_with = "serialize_dt", rename(serialize = "createdAt"))]
     created_at: chrono::DateTime<chrono::Utc>,
+    total: i64,
 }
 
 // #[derive(Serialize, FromRow)]
@@ -88,7 +89,17 @@ impl Order {
     }
 
     pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Order>, sqlx::Error> {
-        let (sql, fields) = QueryBuilder::from_str("SELECT * FROM orders", query, Postgres).build();
+        let (sql, fields) = QueryBuilder::from_str(
+            "SELECT orders.id, user_id, status, address_id, \
+            orders.created_at, SUM(order_items.quantity * price) as total FROM orders \
+            JOIN order_items on orders.id = order_items.order_id \
+            JOIN inventory  on order_items.inventory_id = inventory.id",
+            query,
+            Postgres,
+        )
+        .map_columns([("id", "orders")].into())
+        .build();
+
         let mut query = sqlx::query_as(&sql);
 
         for (field, param) in fields {

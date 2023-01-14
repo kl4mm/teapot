@@ -56,7 +56,7 @@ pub async fn get_orders(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
-    let allowed_fields = HashSet::from(["userId", "id"]);
+    let allowed_fields = HashSet::from(["userId", "id", "createdAt"]);
     let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
         (
@@ -73,10 +73,15 @@ pub async fn get_orders(
         Err((StatusCode::BAD_REQUEST, Some(json!({ "message": e }))))?
     }
 
-    let orders = Order::get(pool, parsed).await.map_err(|e| {
-        log::error!("{}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, None)
-    })?;
+    let orders = match parsed.params.get("id") {
+        Some(_) => {
+            todo!()
+        }
+        None => Order::get(pool, parsed).await.map_err(|e| {
+            log::error!("{}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, None)
+        })?,
+    };
 
     let res = serde_json::to_string(&orders).map_err(|e| {
         log::debug!("{}", e);
