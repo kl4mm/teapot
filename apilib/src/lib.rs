@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
-use hyper::{Body, Response, StatusCode};
+use hyper::{http::HeaderValue, Body, Response, StatusCode};
 use redis::Client as RedisClient;
+use serde_json::json;
 use sqlx::{Pool, Postgres};
 
 pub struct App {
@@ -33,6 +34,25 @@ pub fn set_response(
             StatusCode::UNPROCESSABLE_ENTITY => Body::from(UNPROCESSABLE_ENTITY),
             _ => Body::empty(),
         },
+    };
+
+    *response.body_mut() = body;
+
+    response
+}
+
+pub fn set_response_v2(
+    mut response: Response<Body>,
+    err: (StatusCode, Option<serde_json::Value>),
+) -> Response<Body> {
+    *response.status_mut() = err.0;
+    response
+        .headers_mut()
+        .insert("Content-Type", HeaderValue::from_static("application/json"));
+
+    let body = match err.1 {
+        Some(m) => Body::from(m.to_string()),
+        None => Body::from(json!({ "message": err.0.to_string() }).to_string()),
     };
 
     *response.body_mut() = body;

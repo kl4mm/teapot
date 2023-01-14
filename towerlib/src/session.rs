@@ -50,15 +50,15 @@ pub fn gen_session() -> String {
     rng.gen_range(0..100_000).to_string()
 }
 
-pub fn get_session(headers: &HeaderMap) -> Result<&str, StatusCode> {
+pub fn get_session(headers: &HeaderMap) -> Result<&str, (StatusCode, Option<serde_json::Value>)> {
     let session = match headers.get(SESSION_ID) {
         Some(s) => s.to_str().map_err(|e| {
             log::error!("{}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
+            (StatusCode::INTERNAL_SERVER_ERROR, None)
         })?,
         // Theres was a problem assigning a session ID
         // in the middleware:
-        None => Err(StatusCode::INTERNAL_SERVER_ERROR)?,
+        None => Err((StatusCode::INTERNAL_SERVER_ERROR, None))?,
     };
 
     Ok(session)

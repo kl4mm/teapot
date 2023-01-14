@@ -4,7 +4,7 @@ pub mod inventory;
 pub mod orders;
 
 use address::{get_address, post_address};
-use apilib::{set_response, App};
+use apilib::{set_response_v2, App};
 use cart::{delete_cart, get_cart, patch_cart, post_cart};
 use hyper::{http::HeaderValue, Body, Method, Request, Response, StatusCode};
 use inventory::get_inventory;
@@ -19,7 +19,7 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
 
     let (parts, mut body) = req.into_parts();
 
-    let response = match (parts.method, parts.uri.path()) {
+    let result = match (parts.method, parts.uri.path()) {
         (Method::GET, "/inventory") => get_inventory(&app.pool, parts.uri.query(), response).await,
         (Method::POST, "/address") => post_address(&app.pool, &mut body, response).await,
         (Method::GET, "/address") => get_address(&app.pool, parts.uri.query(), response).await,
@@ -61,9 +61,9 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
         }
     };
 
-    let response = match response {
+    let response = match result {
         Ok(r) => r,
-        Err(code) => set_response(Response::new(Body::empty()), code, None),
+        Err(e) => set_response_v2(Response::default(), e),
     };
 
     Ok(response)

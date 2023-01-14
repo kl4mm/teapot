@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use apilib::set_response;
 use dblib::shop::address::Address;
 use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
 use serde::Deserialize;
+use serde_json::json;
 use sqlx::PgPool;
 
 #[derive(Deserialize)]
@@ -27,15 +27,15 @@ pub async fn post_address(
     pool: &PgPool,
     body: &mut Body,
     mut response: Response<Body>,
-) -> Result<Response<Body>, StatusCode> {
+) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let bytes = hyper::body::to_bytes(body).await.map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
 
     let r: PostAddressRequest = serde_json::from_slice(&bytes).map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::UNPROCESSABLE_ENTITY
+        (StatusCode::UNPROCESSABLE_ENTITY, None)
     })?;
 
     let address = Address::new(
@@ -51,12 +51,12 @@ pub async fn post_address(
     .await
     .map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
 
     let res = serde_json::to_string(&address).map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
 
     *response.status_mut() = StatusCode::CREATED;
@@ -69,40 +69,33 @@ pub async fn get_address(
     pool: &PgPool,
     query: Option<&str>,
     mut response: Response<Body>,
-) -> Result<Response<Body>, StatusCode> {
+) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
     let allowed_fields = HashSet::from(["userId"]);
     let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
-        StatusCode::BAD_REQUEST
+        (
+            StatusCode::BAD_REQUEST,
+            Some(json!({ "error": "invalid query" })),
+        )
     })?;
 
     if let Err(e) = parsed.check_required(vec!["userId"]) {
-        return Ok(set_response(
-            response,
-            StatusCode::BAD_REQUEST,
-            // TODO: Would be better if Err was (StatusCode, Option<serde_json::Value>)
-            Some(&serde_json::json!({ "message": e }).to_string()),
-        ));
+        Err((StatusCode::BAD_REQUEST, Some(json!({ "message": e }))))?
     }
 
     if let Err(e) = parsed.check_limit_and_offset() {
-        return Ok(set_response(
-            response,
-            StatusCode::BAD_REQUEST,
-            // TODO: Would be better if Err was (StatusCode, Option<serde_json::Value>)
-            Some(&serde_json::json!({ "message": e }).to_string()),
-        ));
+        Err((StatusCode::BAD_REQUEST, Some(json!({ "message": e }))))?
     }
 
     let addresses = Address::get(pool, parsed).await.map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
 
     let res = serde_json::to_string(&addresses).map_err(|e| {
         log::debug!("{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
 
     *response.status_mut() = StatusCode::OK;

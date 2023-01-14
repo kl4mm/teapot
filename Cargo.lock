@@ -37,6 +37,7 @@ version = "0.1.0"
 dependencies = [
  "hyper",
  "redis",
+ "serde_json",
  "sqlx",
 ]
 
@@ -1516,6 +1517,7 @@ dependencies = [
  "log",
  "pin-project",
  "rand",
+ "serde_json",
  "tower",
 ]
 
