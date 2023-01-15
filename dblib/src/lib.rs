@@ -17,15 +17,28 @@ pub async fn connect(database: &str) -> Result<PgPool, sqlx::Error> {
     Ok(pool)
 }
 
+#[derive(Debug)]
+pub struct ParseError;
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error parsing arg to type")
+    }
+}
+
+impl std::error::Error for ParseError {}
+
 #[macro_export]
 macro_rules! bind {
-    ( $args:ident, $query:ident, $( $x:expr => $t:ty ),* ) => {
+    ( $args:ident => $query:ident, error: $error:expr, $( $x:expr => $t:ty ),* ) => {
         {
             for (column, arg) in $args {
                 match column.as_str() {
                     $(
                         $x => {
-                            let parsed: $t = arg.parse().unwrap();
+                            let parsed: $t = arg.parse().map_err(|_| {
+                                $error
+                            })?;
                             $query = $query.bind(parsed);
                         }
                     )*

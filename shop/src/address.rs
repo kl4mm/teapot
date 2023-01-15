@@ -5,7 +5,7 @@ use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::PgPool;
+use sqlx::{Either, PgPool};
 
 #[derive(Deserialize)]
 struct PostAddressRequest {
@@ -90,7 +90,10 @@ pub async fn get_address(
 
     let addresses = Address::get(pool, parsed).await.map_err(|e| {
         log::debug!("{}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, None)
+        match e {
+            Either::Right(_) => (StatusCode::BAD_REQUEST, None),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
+        }
     })?;
 
     let res = serde_json::to_string(&addresses).map_err(|e| {

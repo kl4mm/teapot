@@ -3,9 +3,9 @@ use query::{
     UrlQuery,
 };
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Row};
+use sqlx::{Either, FromRow, PgPool, Row};
 
-use crate::bind;
+use crate::{bind, ParseError};
 
 #[derive(Serialize, FromRow)]
 pub struct Address {
@@ -65,16 +65,19 @@ impl Address {
         })
     }
 
-    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn get(
+        pool: &PgPool,
+        query: UrlQuery,
+    ) -> Result<Vec<Self>, Either<sqlx::Error, ParseError>> {
         let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query, Postgres).build();
         let mut query = sqlx::query_as(&sql);
 
         bind!(
-            args,
-            query,
+            args => query,
+            error: Either::Right(ParseError),
             "userId" => i64
         );
 
-        Ok(query.fetch_all(pool).await?)
+        Ok(query.fetch_all(pool).await.map_err(|e| Either::Left(e))?)
     }
 }

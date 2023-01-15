@@ -3,9 +3,9 @@ use query::{
     UrlQuery,
 };
 use serde::{Serialize, Serializer};
-use sqlx::{types::chrono, FromRow, PgPool};
+use sqlx::{types::chrono, Either, FromRow, PgPool};
 
-use crate::bind;
+use crate::{bind, ParseError};
 
 #[derive(Serialize, FromRow)]
 pub struct Inventory {
@@ -28,21 +28,24 @@ where
 }
 
 impl Inventory {
-    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Inventory>, sqlx::Error> {
+    pub async fn get(
+        pool: &PgPool,
+        query: UrlQuery,
+    ) -> Result<Vec<Inventory>, Either<sqlx::Error, ParseError>> {
         let (sql, args) =
             QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres).build();
 
         let mut query = sqlx::query_as(&sql);
 
         bind! (
-            args,
-            query,
+            args => query,
+            error: Either::Right(ParseError),
             "id" => i64,
             "quantity" => i32,
             "price" => i32,
             "createdAt" => String
         );
 
-        Ok(query.fetch_all(pool).await?)
+        Ok(query.fetch_all(pool).await.map_err(|e| Either::Left(e))?)
     }
 }

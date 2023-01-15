@@ -4,7 +4,7 @@ use dblib::shop::inventory::Inventory;
 use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
 use serde_json::json;
-use sqlx::PgPool;
+use sqlx::{Either, PgPool};
 
 pub async fn get_inventory(
     pool: &PgPool,
@@ -27,7 +27,10 @@ pub async fn get_inventory(
 
     let inventory = Inventory::get(pool, parsed).await.map_err(|e| {
         log::debug!("{}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, None)
+        match e {
+            Either::Right(_) => (StatusCode::BAD_REQUEST, None),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
+        }
     })?;
 
     let res = serde_json::to_string(&inventory).map_err(|e| {

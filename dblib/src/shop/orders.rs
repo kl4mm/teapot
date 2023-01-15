@@ -3,10 +3,10 @@ use query::{
     UrlQuery,
 };
 use serde::{Deserialize, Serialize, Serializer};
-use sqlx::{types::chrono, FromRow, PgPool};
+use sqlx::{types::chrono, Either, FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::bind;
+use crate::{bind, ParseError};
 
 use super::inventory::serialize_dt;
 
@@ -90,7 +90,10 @@ impl Order {
         Ok(uuid)
     }
 
-    pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Order>, sqlx::Error> {
+    pub async fn get(
+        pool: &PgPool,
+        query: UrlQuery,
+    ) -> Result<Vec<Order>, Either<sqlx::Error, ParseError>> {
         let (sql, args) = QueryBuilder::from_str(
             "SELECT orders.id, user_id, status, address_id, \
             orders.created_at, SUM(order_items.quantity * price) as total FROM orders \
@@ -105,12 +108,12 @@ impl Order {
         let mut query = sqlx::query_as(&sql);
 
         bind!(
-            args,
-            query,
+            args => query,
+            error: Either::Right(ParseError),
             "id" => Uuid,
             "userId" => i64
         );
 
-        Ok(query.fetch_all(pool).await?)
+        Ok(query.fetch_all(pool).await.map_err(|e| Either::Left(e))?)
     }
 }

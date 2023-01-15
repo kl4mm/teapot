@@ -5,7 +5,7 @@ use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::PgPool;
+use sqlx::{Either, PgPool};
 
 #[derive(Deserialize)]
 struct PostOrdersRequest {
@@ -79,7 +79,10 @@ pub async fn get_orders(
         }
         None => Order::get(pool, parsed).await.map_err(|e| {
             log::error!("{}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, None)
+            match e {
+                Either::Right(_) => (StatusCode::BAD_REQUEST, None),
+                _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
+            }
         })?,
     };
 
