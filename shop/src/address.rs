@@ -76,7 +76,7 @@ pub async fn get_address(
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,
-            Some(json!({ "error": "invalid query" })),
+            Some(json!({ "message": "invalid query" })),
         )
     })?;
 

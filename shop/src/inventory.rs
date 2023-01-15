@@ -17,7 +17,7 @@ pub async fn get_inventory(
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,
-            Some(json!({ "error": "invalid query" })),
+            Some(json!({ "message": "invalid query" })),
         )
     })?;
 
