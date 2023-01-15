@@ -17,5 +17,24 @@ pub async fn connect(database: &str) -> Result<PgPool, sqlx::Error> {
     Ok(pool)
 }
 
+#[macro_export]
+macro_rules! bind {
+    ( $args:ident, $query:ident, $( $x:expr => $t:ty ),* ) => {
+        {
+            for (column, arg) in $args {
+                match column.as_str() {
+                    $(
+                        $x => {
+                            let parsed: $t = arg.parse().unwrap();
+                            $query = $query.bind(parsed);
+                        }
+                    )*
+                    _ => {}
+                }
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {}

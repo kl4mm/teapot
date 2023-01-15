@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{types::chrono, FromRow, PgPool};
 use uuid::Uuid;
 
+use crate::bind;
+
 use super::inventory::serialize_dt;
 
 #[derive(Deserialize)]
@@ -89,7 +91,7 @@ impl Order {
     }
 
     pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Order>, sqlx::Error> {
-        let (sql, fields) = QueryBuilder::from_str(
+        let (sql, args) = QueryBuilder::from_str(
             "SELECT orders.id, user_id, status, address_id, \
             orders.created_at, SUM(order_items.quantity * price) as total FROM orders \
             JOIN order_items on orders.id = order_items.order_id \
@@ -102,19 +104,12 @@ impl Order {
 
         let mut query = sqlx::query_as(&sql);
 
-        for (field, param) in fields {
-            match field.as_str() {
-                "id" => {
-                    let id: Uuid = param.parse().unwrap();
-                    query = query.bind(id);
-                }
-                "userId" => {
-                    let user_id: i64 = param.parse().unwrap();
-                    query = query.bind(user_id);
-                }
-                _ => {}
-            }
-        }
+        bind!(
+            args,
+            query,
+            "id" => Uuid,
+            "userId" => i64
+        );
 
         Ok(query.fetch_all(pool).await?)
     }

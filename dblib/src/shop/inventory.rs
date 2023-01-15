@@ -5,6 +5,8 @@ use query::{
 use serde::{Serialize, Serializer};
 use sqlx::{types::chrono, FromRow, PgPool};
 
+use crate::bind;
+
 #[derive(Serialize, FromRow)]
 pub struct Inventory {
     id: i64,
@@ -27,31 +29,19 @@ where
 
 impl Inventory {
     pub async fn get(pool: &PgPool, query: UrlQuery) -> Result<Vec<Inventory>, sqlx::Error> {
-        let (sql, fields) =
+        let (sql, args) =
             QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres).build();
 
         let mut query = sqlx::query_as(&sql);
-        for (field, param) in fields {
-            match field.as_str() {
-                "id" => {
-                    let id: i64 = param.parse().unwrap();
-                    query = query.bind(id);
-                }
-                "quantity" => {
-                    let quantity: i32 = param.parse().unwrap();
-                    query = query.bind(quantity);
-                }
-                "price" => {
-                    let price: i32 = param.parse().unwrap();
-                    query = query.bind(price);
-                }
-                "createdAt" => {
-                    let created_at: String = param.parse().unwrap();
-                    query = query.bind(created_at);
-                }
-                _ => {}
-            }
-        }
+
+        bind! (
+            args,
+            query,
+            "id" => i64,
+            "quantity" => i32,
+            "price" => i32,
+            "createdAt" => String
+        );
 
         Ok(query.fetch_all(pool).await?)
     }
