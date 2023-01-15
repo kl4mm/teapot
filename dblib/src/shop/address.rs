@@ -1,11 +1,11 @@
 use query::{
     sql::{Database::Postgres, QueryBuilder},
-    UrlQuery,
+    sqlx_bind, UrlQuery,
 };
 use serde::Serialize;
 use sqlx::{Either, FromRow, PgPool, Row};
 
-use crate::{bind, ParseError};
+use crate::ParseError;
 
 #[derive(Serialize, FromRow)]
 pub struct Address {
@@ -72,7 +72,7 @@ impl Address {
         let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query, Postgres).build();
         let mut query = sqlx::query_as(&sql);
 
-        bind!(
+        sqlx_bind!(
             args => query,
             error: Either::Right(ParseError),
             "userId" => i64

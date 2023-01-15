@@ -1,12 +1,12 @@
 use query::{
     sql::{Database::Postgres, QueryBuilder},
-    UrlQuery,
+    sqlx_bind, UrlQuery,
 };
 use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::{bind, ParseError};
+use crate::ParseError;
 
 use super::inventory::serialize_dt;
 
@@ -107,7 +107,7 @@ impl Order {
 
         let mut query = sqlx::query_as(&sql);
 
-        bind!(
+        sqlx_bind!(
             args => query,
             error: Either::Right(ParseError),
             "id" => Uuid,

@@ -1,11 +1,11 @@
 use query::{
     sql::{Database::Postgres, QueryBuilder},
-    UrlQuery,
+    sqlx_bind, UrlQuery,
 };
 use serde::{Serialize, Serializer};
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 
-use crate::{bind, ParseError};
+use crate::ParseError;
 
 #[derive(Serialize, FromRow)]
 pub struct Inventory {
@@ -37,7 +37,7 @@ impl Inventory {
 
         let mut query = sqlx::query_as(&sql);
 
-        bind! (
+        sqlx_bind! (
             args => query,
             error: Either::Right(ParseError),
             "id" => i64,

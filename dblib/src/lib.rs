@@ -28,26 +28,5 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-#[macro_export]
-macro_rules! bind {
-    ( $args:ident => $query:ident, error: $error:expr, $( $x:expr => $t:ty ),* ) => {
-        {
-            for (column, arg) in $args {
-                match column.as_str() {
-                    $(
-                        $x => {
-                            let parsed: $t = arg.parse().map_err(|_| {
-                                $error
-                            })?;
-                            $query = $query.bind(parsed);
-                        }
-                    )*
-                    _ => {}
-                }
-            }
-        }
-    };
-}
-
 #[cfg(test)]
 mod tests {}
