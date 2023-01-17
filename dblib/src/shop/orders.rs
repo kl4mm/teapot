@@ -30,22 +30,17 @@ pub struct Order {
     total: i64,
 }
 
-// #[derive(Serialize, FromRow)]
-// pub struct JoinedOrder {
-//     #[serde(serialize_with = "serialize_uuid")]
-//     id: Uuid,
-//     #[serde(rename(serialize = "userId"))]
-//     user_id: i64,
-//     quantity: i32,
-//     #[serde(rename(serialize = "inventoryId"))]
-//     // Inventory columns:
-//     name: String,
-//     price: i32,
-//     #[serde(rename(serialize = "imageUrl"))]
-//     image_url: String,
-//     #[serde(rename(serialize = "addressId"))]
-//     address_id: i64,
-// }
+#[derive(Serialize, FromRow)]
+pub struct OrderDetail {
+    #[serde(serialize_with = "serialize_uuid")]
+    id: Uuid,
+    name: String,
+    #[serde(rename(serialize = "imageUrl"))]
+    image_url: String,
+    status: String,
+    quantity: i32,
+    total: i32,
+}
 
 pub fn serialize_uuid<S>(uuid: &Uuid, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -96,13 +91,42 @@ impl Order {
     ) -> Result<Vec<Order>, Either<sqlx::Error, ParseError>> {
         let (sql, args) = QueryBuilder::from_str(
             "SELECT orders.id, user_id, status, address_id, \
-            orders.created_at, SUM(order_items.quantity * price) as total FROM orders \
-            JOIN order_items on orders.id = order_items.order_id \
-            JOIN inventory  on order_items.inventory_id = inventory.id",
+            orders.created_at, SUM(order_items.quantity * price) AS total FROM orders \
+            JOIN order_items ON orders.id = order_items.order_id \
+            JOIN inventory ON order_items.inventory_id = inventory.id",
             query,
             Postgres,
         )
         .map_columns([("id", "orders")].into())
+        .build();
+
+        let mut query = sqlx::query_as(&sql);
+
+        sqlx_bind!(
+            args => query,
+            error: Either::Right(ParseError),
+            "id" => Uuid,
+            "userId" => i64
+        );
+
+        Ok(query.fetch_all(pool).await.map_err(|e| Either::Left(e))?)
+    }
+}
+
+impl OrderDetail {
+    pub async fn get(
+        pool: &PgPool,
+        query: UrlQuery,
+    ) -> Result<Vec<OrderDetail>, Either<sqlx::Error, ParseError>> {
+        let (sql, args) = QueryBuilder::from_str(
+            "SELECT orders.id, name, image_url, status, order_items.quantity, \
+	        price, order_items.quantity * price AS total FROM orders \
+            JOIN order_items ON orders.id = order_items.order_id \
+            JOIN inventory ON order_items.inventory_id = inventory.id",
+            query,
+            Postgres,
+        )
+        .map_columns([("id", "orders"), ("createdAt", "orders")].into())
         .build();
 
         let mut query = sqlx::query_as(&sql);

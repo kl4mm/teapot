@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use dblib::shop::orders::{Order, OrderRequest};
+use dblib::shop::orders::{Order, OrderDetail, OrderRequest};
 use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
 use serde::Deserialize;
@@ -57,7 +57,7 @@ pub async fn get_orders(
 ) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
     let allowed_fields = HashSet::from(["userId", "id", "createdAt"]);
-    let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
+    let mut parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,
@@ -65,31 +65,50 @@ pub async fn get_orders(
         )
     })?;
 
-    if let Err(e) = parsed.check_required(vec!["userId"]) {
-        Err((StatusCode::BAD_REQUEST, Some(json!({ "message": e }))))?
+    if parsed.params.is_empty() {
+        Err((StatusCode::BAD_REQUEST, None))?
     }
 
     if let Err(e) = parsed.check_limit_and_offset() {
         Err((StatusCode::BAD_REQUEST, Some(json!({ "message": e }))))?
     }
 
-    let orders = match parsed.params.get("id") {
+    let res: String;
+    match parsed.params.get("id") {
         Some(_) => {
-            todo!()
-        }
-        None => Order::get(pool, parsed).await.map_err(|e| {
-            log::error!("{}", e);
-            match e {
-                Either::Right(_) => (StatusCode::BAD_REQUEST, None),
-                _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
-            }
-        })?,
-    };
+            *parsed.group_mut() = None;
 
-    let res = serde_json::to_string(&orders).map_err(|e| {
-        log::debug!("{}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, None)
-    })?;
+            let orders = OrderDetail::get(pool, parsed).await.map_err(|e| {
+                log::error!("{}", e);
+                match e {
+                    Either::Right(_) => (StatusCode::BAD_REQUEST, None),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
+                }
+            })?;
+
+            res = serde_json::to_string(&orders).map_err(|e| {
+                log::debug!("{}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, None)
+            })?;
+        }
+        None => {
+            // This shouldn't be required in the request
+            *parsed.group_mut() = Some("id".into());
+
+            let orders = Order::get(pool, parsed).await.map_err(|e| {
+                log::error!("{}", e);
+                match e {
+                    Either::Right(_) => (StatusCode::BAD_REQUEST, None),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, None),
+                }
+            })?;
+
+            res = serde_json::to_string(&orders).map_err(|e| {
+                log::debug!("{}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, None)
+            })?;
+        }
+    };
 
     *response.status_mut() = StatusCode::OK;
     *response.body_mut() = Body::from(res);
