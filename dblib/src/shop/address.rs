@@ -1,8 +1,5 @@
 use convert_case::Case;
-use query::{
-    sql::{Database::Postgres, QueryBuilder},
-    sqlx_bind, UrlQuery,
-};
+use query::{sql::QueryBuilder, sqlx_bind, UrlQuery};
 use serde::Serialize;
 use sqlx::{Either, FromRow, PgPool, Row};
 
@@ -70,7 +67,7 @@ impl Address {
         pool: &PgPool,
         query: UrlQuery,
     ) -> Result<Vec<Self>, Either<sqlx::Error, ParseError>> {
-        let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query, Postgres)
+        let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query)
             .convert_case(Case::Snake)
             .build();
         let mut query = sqlx::query_as(&sql);

@@ -1,8 +1,5 @@
 use convert_case::Case;
-use query::{
-    sql::{Database::Postgres, QueryBuilder},
-    sqlx_bind, UrlQuery,
-};
+use query::{sql::QueryBuilder, sqlx_bind, UrlQuery};
 use serde::{Deserialize, Serialize};
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 use uuid::Uuid;
@@ -87,7 +84,6 @@ impl Order {
             JOIN order_items ON orders.id = order_items.order_id \
             JOIN inventory ON order_items.inventory_id = inventory.id",
             query,
-            Postgres,
         )
         .map_columns([("id", "orders")].into())
         .convert_case(Case::Snake)
@@ -117,7 +113,6 @@ impl OrderDetail {
             JOIN order_items ON orders.id = order_items.order_id \
             JOIN inventory ON order_items.inventory_id = inventory.id",
             query,
-            Postgres,
         )
         .map_columns([("id", "orders"), ("createdAt", "orders")].into())
         .convert_case(Case::Snake)

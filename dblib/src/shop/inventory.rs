@@ -1,8 +1,5 @@
 use convert_case::Case;
-use query::{
-    sql::{Database::Postgres, QueryBuilder},
-    sqlx_bind, UrlQuery,
-};
+use query::{sql::QueryBuilder, sqlx_bind, UrlQuery};
 use serde::Serialize;
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 
@@ -26,7 +23,7 @@ impl Inventory {
         pool: &PgPool,
         query: UrlQuery,
     ) -> Result<Vec<Inventory>, Either<sqlx::Error, ParseError>> {
-        let (sql, args) = QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres)
+        let (sql, args) = QueryBuilder::from_str("SELECT * FROM inventory", query)
             .convert_case(Case::Snake)
             .build();
 
