@@ -1,5 +1,10 @@
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use serde::Serializer;
+use sqlx::{
+    postgres::{PgPool, PgPoolOptions},
+    types::chrono,
+};
 use std::env;
+use uuid::Uuid;
 
 pub mod shop;
 pub mod users;
@@ -15,6 +20,20 @@ pub async fn connect(database: &str) -> Result<PgPool, sqlx::Error> {
         .await?;
 
     Ok(pool)
+}
+
+pub fn serialize_uuid<S>(uuid: &Uuid, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&uuid.to_string())
+}
+
+pub fn serialize_dt<S>(dt: &chrono::DateTime<chrono::Utc>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&chrono::DateTime::to_rfc3339(dt))
 }
 
 #[derive(Debug)]

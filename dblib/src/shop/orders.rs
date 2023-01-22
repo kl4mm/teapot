@@ -1,14 +1,13 @@
+use convert_case::Case;
 use query::{
     sql::{Database::Postgres, QueryBuilder},
     sqlx_bind, UrlQuery,
 };
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::ParseError;
-
-use super::inventory::serialize_dt;
+use crate::{serialize_dt, serialize_uuid, ParseError};
 
 #[derive(Deserialize)]
 pub struct OrderRequest {
@@ -40,13 +39,6 @@ pub struct OrderDetail {
     status: String,
     quantity: i32,
     total: i32,
-}
-
-pub fn serialize_uuid<S>(uuid: &Uuid, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&uuid.to_string())
 }
 
 impl Order {
@@ -98,6 +90,7 @@ impl Order {
             Postgres,
         )
         .map_columns([("id", "orders")].into())
+        .convert_case(Case::Snake)
         .build();
 
         let mut query = sqlx::query_as(&sql);
@@ -127,6 +120,7 @@ impl OrderDetail {
             Postgres,
         )
         .map_columns([("id", "orders"), ("createdAt", "orders")].into())
+        .convert_case(Case::Snake)
         .build();
 
         let mut query = sqlx::query_as(&sql);

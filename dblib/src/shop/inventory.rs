@@ -1,11 +1,12 @@
+use convert_case::Case;
 use query::{
     sql::{Database::Postgres, QueryBuilder},
     sqlx_bind, UrlQuery,
 };
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use sqlx::{types::chrono, Either, FromRow, PgPool};
 
-use crate::ParseError;
+use crate::{serialize_dt, ParseError};
 
 #[derive(Serialize, FromRow)]
 pub struct Inventory {
@@ -20,20 +21,14 @@ pub struct Inventory {
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-pub fn serialize_dt<S>(dt: &chrono::DateTime<chrono::Utc>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&chrono::DateTime::to_rfc3339(dt))
-}
-
 impl Inventory {
     pub async fn get(
         pool: &PgPool,
         query: UrlQuery,
     ) -> Result<Vec<Inventory>, Either<sqlx::Error, ParseError>> {
-        let (sql, args) =
-            QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres).build();
+        let (sql, args) = QueryBuilder::from_str("SELECT * FROM inventory", query, Postgres)
+            .convert_case(Case::Snake)
+            .build();
 
         let mut query = sqlx::query_as(&sql);
 

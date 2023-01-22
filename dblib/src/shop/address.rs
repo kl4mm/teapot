@@ -1,3 +1,4 @@
+use convert_case::Case;
 use query::{
     sql::{Database::Postgres, QueryBuilder},
     sqlx_bind, UrlQuery,
@@ -69,7 +70,9 @@ impl Address {
         pool: &PgPool,
         query: UrlQuery,
     ) -> Result<Vec<Self>, Either<sqlx::Error, ParseError>> {
-        let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query, Postgres).build();
+        let (sql, args) = QueryBuilder::from_str("SELECT * FROM address", query, Postgres)
+            .convert_case(Case::Snake)
+            .build();
         let mut query = sqlx::query_as(&sql);
 
         sqlx_bind!(
