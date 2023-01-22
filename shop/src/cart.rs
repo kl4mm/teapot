@@ -21,11 +21,11 @@ struct CartItem {
     quantity: i32,
 }
 
-pub async fn get_cart(
+// To share with post_orders:
+pub async fn get_cart_hashset(
     redis: &RedisClient,
     headers: &HeaderMap,
-    mut response: Response<Body>,
-) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
+) -> Result<HashSet<String>, (StatusCode, Option<serde_json::Value>)> {
     let session = get_session(&headers)?;
 
     let mut con = redis.get_async_connection().await.map_err(|e| {
@@ -39,6 +39,16 @@ pub async fn get_cart(
         log::error!("{}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, None)
     })?;
+
+    Ok(cart)
+}
+
+pub async fn get_cart(
+    redis: &RedisClient,
+    headers: &HeaderMap,
+    mut response: Response<Body>,
+) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
+    let cart = get_cart_hashset(redis, headers).await?;
 
     let mut res = Vec::new();
 

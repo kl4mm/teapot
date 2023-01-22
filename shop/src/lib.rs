@@ -53,7 +53,16 @@ pub async fn handle(app: Arc<App>, req: Request<Body>) -> Result<Response<Body>,
             )
             .await
         }
-        (Method::POST, "/orders") => post_orders(&app.pool, &mut body, response).await,
+        (Method::POST, "/orders") => {
+            post_orders(
+                &app.pool,
+                app.redis.as_ref().unwrap(),
+                &mut body,
+                &parts.headers,
+                response,
+            )
+            .await
+        }
         (Method::GET, "/orders") => get_orders(&app.pool, parts.uri.query(), response).await,
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
