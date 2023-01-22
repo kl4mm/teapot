@@ -4,9 +4,10 @@ use apilib::App;
 use hyper::{
     server::conn::AddrStream,
     service::{make_service_fn, service_fn},
-    Server,
+    Method, Server,
 };
 use redis::Client as RedisClient;
+use tower_http::cors::{Any, Cors};
 use towerlib::{logging::Logging, session::Session};
 
 #[tokio::main]
@@ -25,6 +26,9 @@ async fn main() {
         let svc = service_fn(move |req| shop::handle(app.clone(), req));
         let svc = Session::new(svc);
         let svc = Logging::new(svc);
+        let svc = Cors::new(svc)
+            .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+            .allow_origin(Any);
 
         async move { Ok::<_, Infallible>(svc) }
     });

@@ -5,8 +5,9 @@ use dblib::connect;
 use hyper::{
     server::conn::AddrStream,
     service::{make_service_fn, service_fn},
-    Server,
+    Method, Server,
 };
+use tower_http::cors::{Any, Cors};
 use towerlib::logging::Logging;
 
 #[tokio::main]
@@ -23,6 +24,9 @@ async fn main() {
 
         let svc = service_fn(move |req| users::handle(app.clone(), req));
         let svc = Logging::new(svc);
+        let svc = Cors::new(svc)
+            .allow_methods([Method::GET, Method::POST])
+            .allow_origin(Any);
 
         async move { Ok::<_, Infallible>(svc) }
     });
