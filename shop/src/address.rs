@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use dblib::shop::address::Address;
 use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
@@ -71,8 +69,7 @@ pub async fn get_address(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
-    let allowed_fields = HashSet::from(["userId"]);
-    let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
+    let parsed = UrlQuery::new(query, ["userId"]).map_err(|e| {
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,

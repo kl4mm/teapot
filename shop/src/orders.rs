@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use dblib::shop::orders::{Order, OrderDetail, OrderRequest};
 use hyper::{Body, HeaderMap, Response, StatusCode};
 use query::UrlQuery;
@@ -72,8 +70,7 @@ pub async fn get_orders(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
-    let allowed_fields = HashSet::from(["userId", "id", "createdAt"]);
-    let mut parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
+    let mut parsed = UrlQuery::new(query, ["userId", "id", "createdAt"]).map_err(|e| {
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,

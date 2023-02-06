@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use dblib::shop::inventory::Inventory;
 use hyper::{Body, Response, StatusCode};
 use query::UrlQuery;
@@ -12,8 +10,7 @@ pub async fn get_inventory(
     mut response: Response<Body>,
 ) -> Result<Response<Body>, (StatusCode, Option<serde_json::Value>)> {
     let query = query.unwrap_or("");
-    let allowed_fields = HashSet::from(["quantity", "id", "price", "createdAt"]);
-    let parsed = UrlQuery::new(query, &allowed_fields).map_err(|e| {
+    let parsed = UrlQuery::new(query, ["quantity", "id", "price", "createdAt"]).map_err(|e| {
         log::debug!("{:?}", e);
         (
             StatusCode::BAD_REQUEST,
